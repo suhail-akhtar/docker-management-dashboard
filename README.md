@@ -2,6 +2,10 @@
 
 A modern, feature-rich web interface for managing Docker containers, volumes, and resources. This project provides a user-friendly dashboard for Docker management with real-time updates, advanced filtering, and comprehensive resource monitoring.
 
+### Note: ### 
+Its an initial draft version, all html + javascript + jQuery code is inside in its own .html files, i'll separate it later,
+
+
 ![Docker Web Management UI](screenshot.png)
 
 ## 🌟 Features
@@ -39,9 +43,76 @@ A modern, feature-rich web interface for managing Docker containers, volumes, an
 
 ### Prerequisites
 - Docker Engine (version 19.03 or higher)
-- Node.js (version 14 or higher)
+- Nginx as reverse proxy (to handle CORS issue)
 - Modern web browser (Chrome, Firefox, Safari, Edge)
 
+### Nginx configuration file ###
+``` config
+
+server {
+    listen 2370;
+
+    location / {
+        proxy_pass http://172.22.106.116:2375;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+
+        add_header 'Access-Control-Allow-Origin' '*' always;
+        add_header 'Access-Control-Allow-Methods' 'GET, POST, DELETE, OPTIONS' always;
+        add_header 'Access-Control-Allow-Headers' '*' always;
+
+        if ($request_method = 'OPTIONS') {
+            add_header 'Access-Control-Allow-Origin' '*' always;
+            add_header 'Access-Control-Allow-Methods' 'GET, POST, DELETE, OPTIONS' always;
+            add_header 'Access-Control-Allow-Headers' '*' always;
+            add_header 'Access-Control-Max-Age' 1728000;
+            add_header 'Content-Type' 'text/plain charset=UTF-8';
+            add_header 'Content-Length' 0;
+            return 204;
+        }
+    }
+
+    location ~* ^/exec/ {
+        proxy_pass http://172.22.106.116:2375;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+
+        proxy_buffering off;
+        proxy_cache off;
+        proxy_read_timeout 86400;
+        proxy_send_timeout 86400;
+
+        add_header 'Access-Control-Allow-Origin' '*' always;
+        add_header 'Access-Control-Allow-Methods' 'GET, POST, OPTIONS' always;
+        add_header 'Access-Control-Allow-Headers' '*' always;
+    }
+
+    location ~* ^/containers/[^/]+/attach/ws {
+        proxy_pass http://172.22.106.116:2375;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host $host;
+
+        proxy_read_timeout 86400s;
+        proxy_send_timeout 86400s;
+        proxy_buffering off;
+
+        add_header 'Access-Control-Allow-Origin' '*' always;
+        add_header 'Access-Control-Allow-Methods' 'GET, POST, OPTIONS' always;
+        add_header 'Access-Control-Allow-Headers' '*' always;
+    }
+}
+
+```
 ### Installation
 
 1. Clone the repository:
@@ -51,15 +122,14 @@ cd docker-web-management
 ```
 
 2. Configure the Docker API endpoint:
-Edit the `API_BASE_URL` in the JavaScript files to point to your Docker API endpoint.
+Edit the `API_BASE_URL` in the JavaScript files to point to your Docker API endpoint (in each .html file).
 
 3. Serve the files using a web server:
 ```bash
-# Using Python's built-in server
-python -m http.server 8080
-
-# Or using Node.js http-server
+# using Node.js http-server
 npx http-server
+
+# or run it from vscode live server
 ```
 
 4. Access the dashboard:
@@ -78,7 +148,7 @@ The application requires access to the Docker API. To enable API access:
 ```
 
 2. Enable CORS for the API (for development):
-Add appropriate CORS headers to your Docker API proxy.
+Add appropriate CORS headers to your Docker or Nginx configuration  (already shared above).
 
 ### Security Considerations
 - Use HTTPS for production deployments
@@ -90,6 +160,9 @@ Add appropriate CORS headers to your Docker API proxy.
 
 ### Project Structure
 ```
+Following structure will be implemented later, this time its plain structure all html files are in single root heierarchy + includeing jQuery + javascript for Docker API interaction
+SO ignore following for now.
+
 docker-web-management/
 ├── index.html          # Main dashboard
 ├── console.html        # Container terminal
