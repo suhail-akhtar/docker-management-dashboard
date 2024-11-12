@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Docker Container Console</title>
+    
+    <!-- jQuery -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+    
+    <!-- Font Awesome -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/js/all.min.js"></script>
+    
+    <!-- xterm.js -->
+    <script src="https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit@0.8.0/lib/xterm-addon-fit.min.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.min.css" />
+    
+    <!-- Tailwind CSS -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css" rel="stylesheet">
+    
+    <style>
+        #terminal {
+            height: calc(100vh - 120px);
+        }
+        .terminal-container {
+            background-color: #000;
+            padding: 10px;
+            border-radius: 6px;
+        }
+    </style>
+</head>
+<body class="bg-gray-100">
+    <div class="min-h-screen">
+        <!-- Navigation -->
+        <nav class="bg-white shadow-lg">
+            <div class="max-w-7xl mx-auto px-4">
+                <div class="flex justify-between items-center py-4">
+                    <div class="flex items-center">
+                        <button onclick="history.back()" class="text-gray-500 hover:text-gray-700 mr-4">
+                            <i class="fas fa-arrow-left"></i> Back
+                        </button>
+                        <i class="fab fa-docker text-2xl text-blue-500 mr-2"></i>
+                        <span class="text-xl font-semibold text-gray-800">Container Console</span>
+                        <span id="containerName" class="ml-4 text-gray-600"></span>
+                    </div>
+                    <div class="flex items-center space-x-4">
+                        <button id="reconnectBtn" class="bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600 transition-colors">
+                            <i class="fas fa-sync-alt mr-2"></i>Reconnect
+                        </button>
+                        <select id="shellSelect" class="px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <option value="/bin/sh">/bin/sh</option>
+                            <option value="/bin/bash">/bin/bash</option>
+                            <option value="/bin/ash">/bin/ash</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+        </nav>
+
+        <!-- Terminal Container -->
+        <div class="max-w-7xl mx-auto px-4 py-6">
+            <div class="terminal-container">
+                <div id="terminal"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Notification Container -->
+    <div id="notificationContainer" class="fixed top-4 right-4 z-50"></div>
+
+    // Add this script just before the closing </body> tag
+<script>
+$(document).ready(function() {
+    const API_BASE_URL = 'http://172.22.106.116:2370';
+    const containerId = new URLSearchParams(window.location.search).get('id');
+    let term = null;
+    let fitAddon = null;
+    let ws = null;
+
+    // Show notification
+    function showNotification(message, type = 'success') {
+        const colors = {
+            success: 'bg-green-100 border-green-500 text-green-700',
+            error: 'bg-red-100 border-red-500 text-red-700'
+        };
+
+        const html = `
+            <div class="p-4 rounded-md shadow-lg border-l-4 ${colors[type]} notification">
+                <p>${message}</p>
+            </div>
+        `;
+
+        const notification = $(html).appendTo('#notificationContainer');
+        setTimeout(() => {
+            notification.fadeOut('slow', function() { $(this).remove(); });
+        }, 3000);
+    }
+
+    // Initialize terminal
+ 
+    function initializeTerminal() {
+    if (term) {
+        term.dispose();
+    }
+
+    // Create terminal
+    term = new Terminal({
+        cursorBlink: true,
+        cursorStyle: 'block',
+        fontSize: 14,
+        fontFamily: 'Menlo, Monaco, "Courier New", monospace',
+        theme: {
+            background: '#000000',
+            foreground: '#ffffff'
+        },
+        scrollback: 1000,
+        convertEol: true,
+        cols: 80,
+        rows: 24
+    });
+
+    // Create and load fit addon
+    fitAddon = new FitAddon.FitAddon();
+    term.loadAddon(fitAddon);
+
+    // Open terminal
+    const terminal = document.getElementById('terminal');
+    terminal.innerHTML = '';
+    term.open(terminal);
+    
+    // Initial fit
+    setTimeout(() => {
+        fitAddon.fit();
+    }, 100);
+
+    // Handle window resize
+    const resizeHandler = () => {
+        try {
+            fitAddon.fit();
+        } catch (e) {
+            console.error('Error fitting terminal:', e);
+        }
+    };
+
+    window.addEventListener('resize', resizeHandler);
+    return term;
+}
+ 
+    // Create and connect to exec instance
+
+
+    async function createExecConnection(shell = '/bin/sh') {
+    try {
+        // Close existing WebSocket if any
+        if (ws) {
+            ws.close();
+            ws = null;
+        }
+
+        // Step 1: Create exec instance
+        const execResponse = await fetch(`${API_BASE_URL}/containers/${containerId}/exec`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                AttachStdin: true,
+                AttachStdout: true,
+                AttachStderr: true,
+                Tty: true,
+                Cmd: [shell]
+            })
+        }).then(response => response.json());
+
+        if (!execResponse.Id) {
+            throw new Error('Failed to create exec instance');
+        }
+
+        // Step 2: Start exec instance
+        const startResponse = await fetch(`${API_BASE_URL}/exec/${execResponse.Id}/start`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Upgrade': 'websocket',
+                'Connection': 'Upgrade'
+            },
+            body: JSON.stringify({
+                Detach: false,
+                Tty: true
+            })
+        });
+
+        if (!startResponse.ok) {
+            throw new Error(`Failed to start exec instance: ${startResponse.statusText}`);
+        }
+
+        // Step 3: Create WebSocket connection
+        const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        const wsUrl = `${wsProtocol}//${API_BASE_URL.replace('http://', '')}/exec/${execResponse.Id}/start/ws`;
+        
+        console.log('Creating WebSocket connection:', wsUrl);
+        return new Promise((resolve, reject) => {
+            ws = new WebSocket(wsUrl);
+            let connected = false;
+            
+            const timeout = setTimeout(() => {
+                if (!connected) {
+                    ws.close();
+                    reject(new Error('Connection timeout'));
+                }
+            }, 5000);
+
+            ws.binaryType = "arraybuffer";
+
+            ws.onopen = () => {
+                console.log('WebSocket connected');
+                connected = true;
+                clearTimeout(timeout);
+                term.clear();
+                term.writeln('Connected to container console');
+                term.writeln(`Shell: ${shell}`);
+                term.writeln('Interactive terminal session started\n');
+
+                // Handle terminal input
+                const dataHandler = term.onData(data => {
+                    if (ws && ws.readyState === WebSocket.OPEN) {
+                        const buffer = new TextEncoder().encode(data);
+                        ws.send(buffer);
+                    }
+                });
+
+                // Store the data handler for cleanup
+                ws.dataHandler = dataHandler;
+                resolve(ws);
+            };
+
+            ws.onmessage = (event) => {
+                try {
+                    let text;
+                    if (event.data instanceof ArrayBuffer) {
+                        text = new TextDecoder('utf-8').decode(event.data);
+                    } else if (typeof event.data === 'string') {
+                        text = event.data;
+                    }
+                    if (text) {
+                        term.write(text);
+                    }
+                } catch (error) {
+                    console.error('Error processing message:', error);
+                }
+            };
+
+            ws.onclose = (event) => {
+                clearTimeout(timeout);
+                if (!connected) {
+                    reject(new Error(`WebSocket closed: ${event.code} ${event.reason || 'No reason provided'}`));
+                    return;
+                }
+                console.log('WebSocket closed:', event);
+                term.writeln('\r\nConnection closed');
+                
+                // Clean up data handler
+                if (ws.dataHandler) {
+                    ws.dataHandler.dispose();
+                }
+            };
+
+            ws.onerror = (error) => {
+                clearTimeout(timeout);
+                console.error('WebSocket error:', error);
+                term.writeln('\r\nError: Failed to connect to container console');
+                if (!connected) {
+                    reject(error);
+                }
+            };
+        });
+    } catch (error) {
+        console.error('Error creating exec instance:', error);
+        term.writeln('\r\nError: Failed to create terminal session');
+        term.writeln(`Error details: ${error.message}`);
+        throw error;
+    }
+}
+
+// Update the initialize function
+async function initialize() {
+    try {
+        // Initialize terminal
+        initializeTerminal();
+
+        // Check container status
+        const containerInfo = await fetch(`${API_BASE_URL}/containers/${containerId}/json`)
+            .then(response => response.json());
+
+        if (!containerInfo || containerInfo.State?.Status !== 'running') {
+            throw new Error('Container is not running');
+        }
+
+        $('#containerName').text(containerInfo.Name.replace('/', ''));
+
+        // Create exec connection
+        const selectedShell = $('#shellSelect').val();
+        await createExecConnection(selectedShell);
+        showNotification('Connected to container console');
+    } catch (error) {
+        console.error('Initialization error:', error);
+        const errorMessage = error.message || 'Unknown error occurred';
+        showNotification(`Failed to initialize console: ${errorMessage}`, 'error');
+        term.writeln(`\r\nError: ${errorMessage}`);
+    }
+}
+
+
+    // Event Handlers
+
+    $('#reconnectBtn').click(async function() {
+    const btn = $(this);
+    btn.prop('disabled', true).find('i').addClass('fa-spin');
+    
+    try {
+        const selectedShell = $('#shellSelect').val();
+        await createExecConnection(selectedShell);
+        showNotification('Reconnected to container console');
+    } catch (error) {
+        showNotification(`Failed to reconnect: ${error.message}`, 'error');
+    } finally {
+        btn.prop('disabled', false).find('i').removeClass('fa-spin');
+    }
+});
+
+$('#shellSelect').change(async function() {
+    const select = $(this);
+    const originalValue = select.data('original-value');
+    select.prop('disabled', true);
+    
+    try {
+        const shell = select.val();
+        await createExecConnection(shell);
+        showNotification(`Switched to ${shell}`);
+        select.data('original-value', shell);
+    } catch (error) {
+        showNotification(`Failed to switch shell: ${error.message}`, 'error');
+        if (originalValue) {
+            select.val(originalValue);
+        }
+    } finally {
+        select.prop('disabled', false);
+    }
+});
+
+    // Clean up on page unload
+    window.addEventListener('beforeunload', () => {
+        if (ws && ws.readyState === WebSocket.OPEN) {
+            ws.close();
+        }
+        if (term) {
+            term.dispose();
+        }
+    });
+
+    // Start initialization
+    initialize();
+});
+</script>
+</body>
+</html>

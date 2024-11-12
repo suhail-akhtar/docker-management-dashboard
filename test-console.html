@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Docker Container Console</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit@0.8.0/lib/xterm-addon-fit.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xterm-addon-web-links@0.9.0/lib/xterm-addon-web-links.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/js/all.min.js"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.min.css" />
+    
+    <style>
+        .terminal-container {
+            width: 100%;
+            height: calc(100vh - 64px); /* Subtract header height */
+            background: #000;
+            padding: 10px;
+        }
+        .xterm .xterm-viewport {
+            overflow-y: auto;
+        }
+        .disconnected {
+            opacity: 0.6;
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body class="bg-gray-900">
+    <!-- Header -->
+    <header class="bg-gray-800 text-white h-16">
+        <div class="container mx-auto px-4 h-full">
+            <div class="flex justify-between items-center h-full">
+                <div class="flex items-center space-x-4">
+                    <a href="index.html" class="text-gray-300 hover:text-white">
+                        <i class="fas fa-arrow-left"></i> Back to Dashboard
+                    </a>
+                    <span class="text-xl font-semibold" id="containerName">Container Console</span>
+                    <span id="connectionStatus" class="px-3 py-1 rounded-full text-sm font-medium bg-gray-700">
+                        Connecting...
+                    </span>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <select id="shellSelect" class="bg-gray-700 text-white px-3 py-1 rounded border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <option value="sh">/bin/sh</option>
+                        <option value="bash">/bin/bash</option>
+                        <option value="ash">/bin/ash</option>
+                    </select>
+                    <button id="reconnectBtn" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-1 rounded transition-colors">
+                        <i class="fas fa-sync-alt mr-2"></i>Reconnect
+                    </button>
+                    <button id="clearBtn" class="bg-gray-600 hover:bg-gray-700 text-white px-4 py-1 rounded transition-colors">
+                        <i class="fas fa-eraser mr-2"></i>Clear
+                    </button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Terminal Container -->
+    <div class="terminal-container" id="terminal"></div>
+
+    <script>
+        $(document).ready(function() {
+            const CONSOLE_HOST = 'http://localhost:8888'; // docker-exec-web-console address
+            let term = null;
+            let fitAddon = null;
+            let webLinksAddon = null;
+            let ws = null;
+            let containerId = new URLSearchParams(window.location.search).get('id');
+            let selectedShell = 'sh';
+            let reconnectAttempts = 0;
+            const MAX_RECONNECT_ATTEMPTS = 3;
+
+            function updateConnectionStatus(status, isError = false) {
+                const statusEl = $('#connectionStatus');
+                statusEl.removeClass('bg-gray-700 bg-green-600 bg-red-600');
+                
+                if (isError) {
+                    statusEl.addClass('bg-red-600').text(status);
+                } else if (status === 'Connected') {
+                    statusEl.addClass('bg-green-600').text(status);
+                } else {
+                    statusEl.addClass('bg-gray-700').text(status);
+                }
+            }
+
+            function showNotification(message, type = 'info') {
+                const colors = {
+                    info: 'bg-blue-500',
+                    success: 'bg-green-500',
+                    error: 'bg-red-500'
+                };
+                
+                const notification = $(`
+                    <div class="fixed top-4 right-4 ${colors[type]} text-white px-6 py-3 rounded shadow-lg transition-opacity duration-500">
+                        ${message}
+                    </div>
+                `);
+                
+                $('body').append(notification);
+                setTimeout(() => {
+                    notification.fadeOut('slow', function() { $(this).remove(); });
+                }, 3000);
+            }
+
+            async function initTerminal() {
+                if (term) {
+                    term.dispose();
+                }
+
+                term = new Terminal({
+                    cursorBlink: true,
+                    cursorStyle: 'block',
+                    fontSize: 14,
+                    fontFamily: 'Menlo, Monaco, "Courier New", monospace',
+                    theme: {
+                        background: '#000000',
+                        foreground: '#ffffff',
+                        cursor: '#ffffff'
+                    },
+                    scrollback: 10000,
+                    rows: 30
+                });
+
+                fitAddon = new FitAddon.FitAddon();
+                webLinksAddon = new WebLinksAddon.WebLinksAddon();
+                
+                term.loadAddon(fitAddon);
+                term.loadAddon(webLinksAddon);
+
+                term.open(document.getElementById('terminal'));
+                fitAddon.fit();
+
+                window.addEventListener('resize', () => {
+                    fitAddon.fit();
+                });
+
+                return term;
+            }
+
+            async function connectWebSocket() {
+                if (ws) {
+                    ws.close();
+                }
+
+                updateConnectionStatus('Connecting...');
+
+                const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+                const wsUrl = `${wsProtocol}//${CONSOLE_HOST.replace('http://', '')}/ws?cid=${containerId}&cmd=${selectedShell}`;
+
+                ws = new WebSocket(wsUrl);
+                ws.binaryType = 'arraybuffer';
+
+                ws.onopen = () => {
+                    updateConnectionStatus('Connected');
+                    showNotification('Connected to container console', 'success');
+                    reconnectAttempts = 0;
+                    $('#reconnectBtn').prop('disabled', false).removeClass('opacity-50');
+                };
+
+                ws.onmessage = (event) => {
+                    if (event.data instanceof ArrayBuffer) {
+                        const text = new TextDecoder('utf-8').decode(event.data);
+                        term.write(text);
+                    } else {
+                        term.write(event.data);
+                    }
+                };
+
+                ws.onclose = () => {
+                    updateConnectionStatus('Disconnected', true);
+                    if (reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
+                        reconnectAttempts++;
+                        setTimeout(connectWebSocket, 2000);
+                    } else {
+                        showNotification('Connection lost. Please reconnect manually.', 'error');
+                    }
+                };
+
+                ws.onerror = (error) => {
+                    console.error('WebSocket error:', error);
+                    updateConnectionStatus('Connection Error', true);
+                    showNotification('Failed to connect to container console', 'error');
+                };
+
+                // Handle terminal input
+                term.onData(data => {
+                    if (ws && ws.readyState === WebSocket.OPEN) {
+                        ws.send(new TextEncoder().encode(data));
+                    }
+                });
+            }
+
+            async function initialize() {
+                if (!containerId) {
+                    showNotification('Container ID not provided', 'error');
+                    return;
+                }
+
+                try {
+                    await initTerminal();
+                    await connectWebSocket();
+                    
+                    // Fetch container name
+                    try {
+                        const response = await fetch(`${API_BASE_URL}/containers/${containerId}/json`);
+                        const data = await response.json();
+                        $('#containerName').text(data.Name.replace('/', ''));
+                    } catch (error) {
+                        console.error('Error fetching container name:', error);
+                    }
+
+                } catch (error) {
+                    console.error('Initialization error:', error);
+                    showNotification('Failed to initialize console', 'error');
+                }
+            }
+
+            // Event Handlers
+            $('#reconnectBtn').click(async () => {
+                reconnectAttempts = 0;
+                await connectWebSocket();
+            });
+
+            $('#clearBtn').click(() => {
+                term.clear();
+            });
+
+            $('#shellSelect').change(function() {
+                selectedShell = $(this).val();
+                connectWebSocket();
+            });
+
+            // Clean up on page unload
+            window.addEventListener('beforeunload', () => {
+                if (ws && ws.readyState === WebSocket.OPEN) {
+                    ws.close();
+                }
+                if (term) {
+                    term.dispose();
+                }
+            });
+
+            // Initialize
+            initialize();
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,1050 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Docker Image Details</title>
+    
+    <!-- Dependencies -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/js/all.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.43.0/min/vs/loader.js"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css" rel="stylesheet">
+
+    <style>
+        .layer-card:hover {
+            transform: translateY(-2px);
+            transition: transform 0.2s ease;
+        }
+        .monaco-editor {
+            padding-top: 8px;
+        }
+        .copy-animation {
+            animation: copyFade 1s ease-in-out;
+        }
+        @keyframes copyFade {
+            0% { opacity: 0; transform: translateY(10px); }
+            50% { opacity: 1; transform: translateY(0); }
+            100% { opacity: 0; transform: translateY(-10px); }
+        }
+    </style>
+</head>
+<body class="bg-gray-100">
+    <div class="min-h-screen">
+        <!-- Navigation -->
+        <nav class="bg-white shadow-lg">
+            <div class="max-w-7xl mx-auto px-4">
+                <div class="flex justify-between items-center py-4">
+                    <div class="flex items-center">
+                        <a href="images.html" class="text-gray-500 hover:text-gray-700 mr-4">
+                            <i class="fas fa-arrow-left"></i> Back to Images
+                        </a>
+                        <i class="fab fa-docker text-2xl text-blue-500 mr-2"></i>
+                        <span class="text-xl font-semibold text-gray-800">Image Details</span>
+                        <span id="imageTag" class="ml-4 text-sm text-gray-600"></span>
+                    </div>
+                    <div class="flex items-center space-x-4">
+                        <button id="refreshBtn" class="bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600 transition-colors">
+                            <i class="fas fa-sync-alt mr-2"></i>Refresh
+                        </button>
+                        <button id="exportBtn" class="bg-green-500 text-white px-4 py-2 rounded-md hover:bg-green-600 transition-colors">
+                            <i class="fas fa-file-export mr-2"></i>Export
+                        </button>
+                        <button id="removeBtn" class="bg-red-500 text-white px-4 py-2 rounded-md hover:bg-red-600 transition-colors">
+                            <i class="fas fa-trash-alt mr-2"></i>Remove
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </nav>
+
+        <!-- Image Actions Toolbar -->
+        <div class="bg-white shadow-md mt-6 mx-auto max-w-7xl px-4">
+            <div class="py-4">
+                <div class="flex flex-wrap items-center justify-between gap-4">
+                    <!-- Left Side: Stats -->
+                    <div class="flex items-center space-x-8">
+                        <div>
+                            <span class="text-sm text-gray-500">Size</span>
+                            <p id="imageSize" class="text-lg font-semibold text-gray-900">0 MB</p>
+                        </div>
+                        <div>
+                            <span class="text-sm text-gray-500">Created</span>
+                            <p id="imageCreated" class="text-lg font-semibold text-gray-900">Unknown</p>
+                        </div>
+                        <div>
+                            <span class="text-sm text-gray-500">Architecture</span>
+                            <p id="imageArch" class="text-lg font-semibold text-gray-900">Unknown</p>
+                        </div>
+                        <div>
+                            <span class="text-sm text-gray-500">Status</span>
+                            <p id="imageStatus" class="mt-1">
+                                <span class="px-2 py-1 text-sm font-semibold rounded-full bg-green-100 text-green-800">
+                                    Active
+                                </span>
+                            </p>
+                        </div>
+                    </div>
+                    
+                    <!-- Right Side: Quick Actions -->
+                    <div class="flex items-center space-x-4">
+                        <button id="inspectBtn" class="inline-flex items-center px-4 py-2 bg-gray-700 text-white rounded hover:bg-gray-800">
+                            <i class="fas fa-search mr-2"></i>Inspect
+                        </button>
+                        <button id="historyBtn" class="inline-flex items-center px-4 py-2 bg-purple-500 text-white rounded hover:bg-purple-600">
+                            <i class="fas fa-history mr-2"></i>History
+                        </button>
+                        <button id="tagsBtn" class="inline-flex items-center px-4 py-2 bg-yellow-500 text-white rounded hover:bg-yellow-600">
+                            <i class="fas fa-tags mr-2"></i>Tags
+                        </button>
+                        <div class="relative">
+                            <button id="moreActionsBtn" class="inline-flex items-center px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">
+                                <i class="fas fa-ellipsis-h mr-2"></i>More
+                            </button>
+                            <div id="moreActionsMenu" class="hidden absolute right-0 mt-2 w-48 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5">
+                                <div class="py-1" role="menu">
+                                    <a href="#" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100" role="menuitem" action="layers">
+                                        <i class="fas fa-layer-group mr-2"></i>View Layers
+                                    </a>
+                                    <a href="#" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100" role="menuitem" action="dockerfile">
+                                        <i class="fas fa-file-signature mr-2"></i>View Dockerfile
+                                    </a>
+                                    <a href="#" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100" role="menuitem" action="create-container">
+                                        <i class="fas fa-box-open mr-2"></i>Create Container
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="max-w-7xl mx-auto px-4 py-8">
+            <!-- Basic Info Card -->
+            <div class="bg-white rounded-lg shadow mb-8">
+                <div class="px-6 py-4 border-b border-gray-200">
+                    <h2 class="text-lg font-semibold text-gray-800">Basic Information</h2>
+                </div>
+                <div class="p-6">
+                    <div class="grid grid-cols-2 gap-6">
+                        <div>
+                            <p class="text-sm text-gray-600 mb-1">Repository</p>
+                            <p id="imageRepository" class="text-sm font-medium text-gray-900"></p>
+                        </div>
+                        <div>
+                            <p class="text-sm text-gray-600 mb-1">Tag</p>
+                            <p id="imageTagDetail" class="text-sm font-medium text-gray-900"></p>
+                        </div>
+                        <div>
+                            <p class="text-sm text-gray-600 mb-1">Image ID</p>
+                            <p id="imageId" class="text-sm font-medium text-gray-900"></p>
+                        </div>
+                        <div>
+                            <p class="text-sm text-gray-600 mb-1">Digest</p>
+                            <p id="imageDigest" class="text-sm font-medium text-gray-900"></p>
+                        </div>
+                        <div>
+                            <p class="text-sm text-gray-600 mb-1">Platform</p>
+                            <p id="imagePlatform" class="text-sm font-medium text-gray-900"></p>
+                        </div>
+                        <div>
+                            <p class="text-sm text-gray-600 mb-1">Author</p>
+                            <p id="imageAuthor" class="text-sm font-medium text-gray-900"></p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Image Configuration -->
+            <div class="bg-white rounded-lg shadow mb-8">
+                <div class="px-6 py-4 border-b border-gray-200">
+                    <h2 class="text-lg font-semibold text-gray-800">Configuration</h2>
+                </div>
+                <div class="p-6">
+                    <div class="grid grid-cols-2 gap-6">
+                        <!-- Entrypoint -->
+                        <div class="col-span-2">
+                            <p class="text-sm text-gray-600 mb-2">Entrypoint</p>
+                            <div id="imageEntrypoint" class="bg-gray-50 rounded-lg p-4 font-mono text-sm"></div>
+                        </div>
+                        
+                        <!-- Command -->
+                        <div class="col-span-2">
+                            <p class="text-sm text-gray-600 mb-2">Command</p>
+                            <div id="imageCmd" class="bg-gray-50 rounded-lg p-4 font-mono text-sm"></div>
+                        </div>
+
+                        <!-- Environment Variables -->
+                        <div class="col-span-2">
+                            <p class="text-sm text-gray-600 mb-2">Environment Variables</p>
+                            <div class="bg-gray-50 rounded-lg overflow-hidden">
+                                <table class="min-w-full divide-y divide-gray-200">
+                                    <thead class="bg-gray-100">
+                                        <tr>
+                                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Variable</th>
+                                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Value</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="imageEnv" class="divide-y divide-gray-200">
+                                        <!-- Environment variables will be inserted here -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- Volumes -->
+                        <div class="col-span-2">
+                            <p class="text-sm text-gray-600 mb-2">Volumes</p>
+                            <div id="imageVolumes" class="bg-gray-50 rounded-lg p-4">
+                                <!-- Volumes will be listed here -->
+                            </div>
+                        </div>
+
+                        <!-- Working Directory -->
+                        <div>
+                            <p class="text-sm text-gray-600 mb-2">Working Directory</p>
+                            <p id="imageWorkdir" class="font-mono text-sm"></p>
+                        </div>
+
+                        <!-- User -->
+                        <div>
+                            <p class="text-sm text-gray-600 mb-2">User</p>
+                            <p id="imageUser" class="font-mono text-sm"></p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading Spinner -->
+    <div id="loadingSpinner" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full">
+        <div class="relative top-20 mx-auto p-5 border w-32 shadow-lg rounded-md bg-white">
+            <div class="flex justify-center">
+                <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add this content after the existing main content area but before closing body tag -->
+
+<!-- Image Layers Section -->
+<div class="max-w-7xl mx-auto px-4 mb-8">
+    <div class="bg-white rounded-lg shadow">
+        <div class="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
+            <h2 class="text-lg font-semibold text-gray-800">Image Layers</h2>
+            <div class="flex items-center space-x-4">
+                <span class="text-sm text-gray-500" id="layerCount">0 layers</span>
+                <button id="expandAllLayers" class="text-blue-500 hover:text-blue-700">
+                    <i class="fas fa-expand-alt mr-1"></i>Expand All
+                </button>
+            </div>
+        </div>
+        <div class="p-6">
+            <div id="layersSection" class="space-y-4">
+                <!-- Layers will be inserted here -->
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Image History Timeline -->
+<div class="max-w-7xl mx-auto px-4 mb-8">
+    <div class="bg-white rounded-lg shadow">
+        <div class="px-6 py-4 border-b border-gray-200">
+            <h2 class="text-lg font-semibold text-gray-800">Build History</h2>
+        </div>
+        <div class="p-6">
+            <div class="relative">
+                <!-- Vertical Timeline Line -->
+                <div class="absolute left-4 top-0 bottom-0 w-0.5 bg-blue-200"></div>
+                
+                <div id="historyTimeline" class="space-y-6 relative">
+                    <!-- History items will be inserted here -->
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Tag Management Section -->
+<div id="tagsSection" class="max-w-7xl mx-auto px-4 mb-8">
+    <div class="bg-white rounded-lg shadow">
+        <div class="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
+            <h2 class="text-lg font-semibold text-gray-800">Tags</h2>
+            <button id="addTagBtn" class="bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600">
+                <i class="fas fa-plus mr-2"></i>Add Tag
+            </button>
+        </div>
+        <div class="p-6">
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tag</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Created</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Size</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Digest</th>
+                            <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tagsList" class="bg-white divide-y divide-gray-200">
+                        <!-- Tags will be inserted here -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modals -->
+
+<!-- Dockerfile Modal -->
+<div id="dockerfileModal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full">
+    <div class="relative top-20 mx-auto p-5 border w-3/4 shadow-lg rounded-md bg-white">
+        <div class="flex justify-between items-center pb-3">
+            <h3 class="text-xl font-semibold">Generated Dockerfile</h3>
+            <div class="flex items-center space-x-4">
+                <button id="copyDockerfileBtn" class="text-blue-500 hover:text-blue-700">
+                    <i class="fas fa-copy mr-1"></i>Copy
+                </button>
+                <button class="modal-close text-gray-400 hover:text-gray-500">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+        </div>
+        <div class="mt-4">
+            <div id="dockerfileEditor" style="height: 600px; border: 1px solid #ddd;"></div>
+        </div>
+    </div>
+</div>
+
+<!-- Layer Details Modal -->
+<div id="layerDetailModal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full">
+    <div class="relative top-20 mx-auto p-5 border w-3/4 shadow-lg rounded-md bg-white">
+        <div class="flex justify-between items-center pb-3">
+            <h3 class="text-xl font-semibold text-gray-900">Layer Details</h3>
+            <button class="modal-close text-gray-400 hover:text-gray-500">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="mt-4">
+            <div class="grid grid-cols-2 gap-6">
+                <!-- Layer Info -->
+                <div>
+                    <h4 class="text-lg font-medium text-gray-700 mb-4">Information</h4>
+                    <div class="space-y-3">
+                        <div>
+                            <p class="text-sm text-gray-500">Layer ID</p>
+                            <p id="layerDetailId" class="text-sm font-medium text-gray-900 font-mono"></p>
+                        </div>
+                        <div>
+                            <p class="text-sm text-gray-500">Created</p>
+                            <p id="layerDetailCreated" class="text-sm font-medium text-gray-900"></p>
+                        </div>
+                        <div>
+                            <p class="text-sm text-gray-500">Size</p>
+                            <p id="layerDetailSize" class="text-sm font-medium text-gray-900"></p>
+                        </div>
+                        <div>
+                            <p class="text-sm text-gray-500">Command</p>
+                            <div id="layerDetailCommand" class="mt-1 bg-gray-50 rounded p-3 font-mono text-sm"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Layer Changes -->
+                <div>
+                    <h4 class="text-lg font-medium text-gray-700 mb-4">Changes</h4>
+                    <div class="bg-gray-50 rounded-lg p-4">
+                        <div class="space-y-2" id="layerDetailChanges">
+                            <!-- Changes will be inserted here -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Add Tag Modal -->
+<div id="addTagModal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full">
+    <div class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+        <div class="flex justify-between items-center pb-3">
+            <h3 class="text-xl font-semibold">Add New Tag</h3>
+            <button class="modal-close text-gray-400 hover:text-gray-500">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <form id="addTagForm" class="mt-4">
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">Repository</label>
+                    <input type="text" id="newTagRepo" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">Tag</label>
+                    <input type="text" id="newTagName" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">Force</label>
+                    <div class="mt-1">
+                        <label class="inline-flex items-center">
+                            <input type="checkbox" id="newTagForce" class="rounded border-gray-300 text-blue-600 focus:ring-blue-500">
+                            <span class="ml-2 text-sm text-gray-600">Overwrite existing tag</span>
+                        </label>
+                    </div>
+                </div>
+            </div>
+            <div class="mt-6 flex justify-end space-x-3">
+                <button type="button" class="modal-close px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                    Cancel
+                </button>
+                <button type="submit" class="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                    Add Tag
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Remove Tag Confirmation Modal -->
+<div id="removeTagModal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full">
+    <div class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+        <div class="mt-3 text-center">
+            <div class="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-red-100">
+                <i class="fas fa-exclamation-triangle text-red-600"></i>
+            </div>
+            <h3 class="text-lg leading-6 font-medium text-gray-900 mt-4">Remove Tag</h3>
+            <div class="mt-2 px-7 py-3">
+                <p class="text-sm text-gray-500" id="removeTagConfirmText">
+                    Are you sure you want to remove this tag?
+                </p>
+            </div>
+            <div class="flex justify-center mt-4 space-x-4">
+                <button class="modal-close px-4 py-2 bg-gray-500 text-white text-base font-medium rounded-md shadow-sm hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-gray-300">
+                    Cancel
+                </button>
+                <button id="confirmRemoveTag" class="px-4 py-2 bg-red-500 text-white text-base font-medium rounded-md shadow-sm hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-red-300">
+                    Remove
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Inspection Modal -->
+<div id="inspectModal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full">
+    <div class="relative top-20 mx-auto p-5 border w-3/4 shadow-lg rounded-md bg-white">
+        <div class="flex justify-between items-center pb-3">
+            <h3 class="text-xl font-semibold">Image Inspection</h3>
+            <div class="flex items-center space-x-4">
+                <button id="copyInspectBtn" class="text-blue-500 hover:text-blue-700">
+                    <i class="fas fa-copy mr-1"></i>Copy
+                </button>
+                <button class="modal-close text-gray-400 hover:text-gray-500">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+        </div>
+        <div class="mt-4">
+            <div id="inspectEditor" style="height: 600px; border: 1px solid #ddd;"></div>
+        </div>
+    </div>
+</div>
+
+<!-- Copy Success Indicator -->
+<div id="copySuccess" class="hidden fixed top-4 right-4 bg-green-100 border-l-4 border-green-500 text-green-700 p-4 rounded shadow-lg copy-animation">
+    <div class="flex items-center">
+        <i class="fas fa-check-circle mr-2"></i>
+        <p>Copied to clipboard!</p>
+    </div>
+</div>
+
+<!-- Notifications Container -->
+<div id="notificationContainer" class="fixed top-4 right-4 z-50 space-y-2">
+    <!-- Notifications will be dynamically inserted here -->
+</div>
+
+<script>
+    // Docker Image Detail JavaScript Implementation
+$(document).ready(function() {
+    const API_BASE_URL = 'http://172.22.106.116:2370';
+    let imageId = new URLSearchParams(window.location.search).get('id');
+    let imageData = null;
+    let editor = null;
+    let inspectEditor = null;
+
+    // Initialize Monaco Editor
+    require.config({ paths: { 'vs': 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.43.0/min/vs' }});
+    require(['vs/editor/editor.main'], function() {
+        inspectEditor = monaco.editor.create(document.getElementById('inspectEditor'), {
+            language: 'json',
+            theme: 'vs-dark',
+            readOnly: true,
+            minimap: { enabled: false },
+            automaticLayout: true
+        });
+    });
+
+    // Format bytes to human readable format
+    function formatBytes(bytes) {
+        if (bytes === 0) return '0 B';
+        const k = 1024;
+        const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    }
+
+    // Format timestamp
+    function formatTimestamp(timestamp) {
+        const date = new Date(timestamp * 1000);
+        return date.toLocaleString();
+    }
+
+    // Show notification
+    function showNotification(message, type = 'success') {
+        const colors = {
+            success: 'bg-green-100 border-green-500 text-green-700',
+            error: 'bg-red-100 border-red-500 text-red-700',
+            warning: 'bg-yellow-100 border-yellow-500 text-yellow-700'
+        };
+
+        const html = `
+            <div class="p-4 rounded-md shadow-lg border-l-4 ${colors[type]} notification">
+                <p>${message}</p>
+            </div>
+        `;
+
+        const notification = $(html).appendTo('#notificationContainer');
+        setTimeout(() => {
+            notification.fadeOut('slow', function() { $(this).remove(); });
+        }, 3000);
+    }
+
+    // Fetch and display image details
+    async function fetchImageDetails() {
+        try {
+            $('#loadingSpinner').removeClass('hidden');
+            
+            // Fetch image details
+            const [imageInfo, history] = await Promise.all([
+                $.get(`${API_BASE_URL}/images/${imageId}/json`),
+                $.get(`${API_BASE_URL}/images/${imageId}/history`)
+            ]);
+
+            imageData = imageInfo;
+            updateUI(imageInfo, history);
+        } catch (error) {
+            console.error('Error fetching image details:', error);
+            showNotification('Failed to fetch image details', 'error');
+        } finally {
+            $('#loadingSpinner').addClass('hidden');
+        }
+    }
+
+    // Update UI with image data
+    function updateUI(imageInfo, history) {
+        // Update basic info
+        const mainTag = imageInfo.RepoTags?.[0] || '<none>:<none>';
+        $('#imageTag').text(mainTag);
+        $('#imageSize').text(formatBytes(imageInfo.Size));
+        $('#imageCreated').text(formatTimestamp(imageInfo.Created));
+        $('#imageArch').text(`${imageInfo.Architecture}/${imageInfo.Os}`);
+        
+        // Update repository info
+        const [repo, tag] = (mainTag || '').split(':');
+        $('#imageRepository').text(repo);
+        $('#imageTagDetail').text(tag);
+        $('#imageId').text(imageInfo.Id.slice(7, 19)); // Short ID
+        $('#imageDigest').text(imageInfo.RepoDigests?.[0] || 'N/A');
+        $('#imagePlatform').text(`${imageInfo.Os}/${imageInfo.Architecture}`);
+        $('#imageAuthor').text(imageInfo.Author || 'N/A');
+
+        // Update configuration
+        $('#imageEntrypoint').text(JSON.stringify(imageInfo.Config.Entrypoint || [], null, 2));
+        $('#imageCmd').text(JSON.stringify(imageInfo.Config.Cmd || [], null, 2));
+        $('#imageWorkdir').text(imageInfo.Config.WorkingDir || '/');
+        $('#imageUser').text(imageInfo.Config.User || 'root');
+
+        // Update environment variables
+        const envTable = $('#imageEnv').empty();
+        (imageInfo.Config.Env || []).forEach(env => {
+            const [key, ...valueParts] = env.split('=');
+            const value = valueParts.join('=');
+            envTable.append(`
+                <tr>
+                    <td class="px-6 py-4 whitespace-nowrap font-mono text-sm">${key}</td>
+                    <td class="px-6 py-4 whitespace-pre-wrap font-mono text-sm">${value}</td>
+                </tr>
+            `);
+        });
+
+        // Update volumes
+        const volumesDiv = $('#imageVolumes').empty();
+        const volumes = Object.keys(imageInfo.Config.Volumes || {});
+        if (volumes.length > 0) {
+            volumes.forEach(volume => {
+                volumesDiv.append(`
+                    <div class="mb-2 font-mono text-sm">${volume}</div>
+                `);
+            });
+        } else {
+            volumesDiv.append('<div class="text-gray-500">No volumes configured</div>');
+        }
+
+        // Update layers
+        updateLayers(history);
+        
+        // Update tags
+        updateTags(imageInfo.RepoTags || []);
+    }
+
+    // Update layers visualization
+    function updateLayers(history) {
+        const layersContainer = $('#layersSection').empty();
+        $('#layerCount').text(`${history.length} layers`);
+
+        history.forEach((layer, index) => {
+            const size = layer.Size || 0;
+            const layerHtml = `
+                <div class="layer-card bg-white rounded-lg shadow hover:shadow-md transition-shadow">
+                    <div class="p-4">
+                        <div class="flex items-center justify-between">
+                            <div class="flex-1">
+                                <p class="text-sm font-medium text-gray-900">Layer ${history.length - index}</p>
+                                <p class="text-sm text-gray-500">${formatBytes(size)}</p>
+                            </div>
+                            <button class="view-layer-btn px-3 py-1 text-sm text-blue-600 hover:text-blue-800" 
+                                    data-layer-index="${index}">
+                                <i class="fas fa-expand"></i>
+                            </button>
+                        </div>
+                        <div class="mt-2">
+                            <p class="text-sm font-mono text-gray-600 truncate">${layer.CreatedBy || 'N/A'}</p>
+                        </div>
+                    </div>
+                </div>
+            `;
+            layersContainer.append(layerHtml);
+        });
+    }
+
+    // Update tags list
+    function updateTags(tags) {
+        const tagsList = $('#tagsList').empty();
+        
+        if (tags.length === 0) {
+            tagsList.append(`
+                <tr>
+                    <td colspan="5" class="px-6 py-4 text-center text-gray-500">
+                        No tags found
+                    </td>
+                </tr>
+            `);
+            return;
+        }
+
+        tags.forEach(tag => {
+            const [repo, tagName] = tag.split(':');
+            tagsList.append(`
+                <tr>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <span class="text-sm font-medium text-gray-900">${tagName}</span>
+                        <span class="text-sm text-gray-500 ml-2">${repo}</span>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        ${formatTimestamp(imageData.Created)}
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        ${formatBytes(imageData.Size)}
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        ${imageData.RepoDigests?.[0]?.split('@')[1]?.slice(0, 12) || 'N/A'}
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                        <button class="text-red-600 hover:text-red-900 remove-tag-btn" data-tag="${tag}">
+                            <i class="fas fa-trash-alt"></i>
+                        </button>
+                    </td>
+                </tr>
+            `);
+        });
+    }
+
+    // Event Handlers
+
+    // Refresh button
+    $('#refreshBtn').click(function() {
+        $(this).find('i').addClass('animate-spin');
+        fetchImageDetails().finally(() => {
+            setTimeout(() => {
+                $(this).find('i').removeClass('animate-spin');
+            }, 500);
+        });
+    });
+
+    // Export button
+    $('#exportBtn').click(async function() {
+        try {
+            const tag = imageData.RepoTags?.[0] || imageId;
+            const fileName = `${tag.replace(/[\/\:]/g, '_')}.tar`;
+            
+            showNotification('Starting image export...', 'info');
+            
+            const link = document.createElement('a');
+            link.href = `${API_BASE_URL}/images/${imageId}/get`;
+            link.download = fileName;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            
+            showNotification('Image export started');
+        } catch (error) {
+            showNotification('Failed to export image', 'error');
+        }
+    });
+
+    // Remove button
+    $('#removeBtn').click(async function() {
+        if (confirm('Are you sure you want to remove this image?')) {
+            try {
+                await $.ajax({
+                    url: `${API_BASE_URL}/images/${imageId}`,
+                    method: 'DELETE'
+                });
+                showNotification('Image removed successfully');
+                setTimeout(() => {
+                    window.location.href = 'images.html';
+                }, 1000);
+            } catch (error) {
+                showNotification('Failed to remove image', 'error');
+            }
+        }
+    });
+
+    // Layer view button
+    $(document).on('click', '.view-layer-btn', function() {
+        const index = $(this).data('layer-index');
+        const layer = imageData.RootFS.Layers[index];
+        
+        // Update layer detail modal
+        $('#layerDetailId').text(layer.slice(7, 19));
+        $('#layerDetailCreated').text(formatTimestamp(imageData.Created));
+        $('#layerDetailSize').text(formatBytes(imageData.Size));
+        $('#layerDetailCommand').text(imageData.Config.Cmd?.join(' ') || 'N/A');
+
+        // Show modal
+        $('#layerDetailModal').removeClass('hidden');
+    });
+
+    // Add tag button
+    $('#addTagBtn').click(() => {
+        $('#addTagModal').removeClass('hidden');
+    });
+
+    // Add tag form submission
+    $('#addTagForm').submit(async function(e) {
+        e.preventDefault();
+        
+        const repo = $('#newTagRepo').val();
+        const tag = $('#newTagName').val();
+        const force = $('#newTagForce').is(':checked');
+        
+        try {
+            await $.ajax({
+                url: `${API_BASE_URL}/images/${imageId}/tag`,
+                method: 'POST',
+                data: {
+                    repo: repo,
+                    tag: tag,
+                    force: force
+                }
+            });
+            
+            showNotification('Tag added successfully');
+            $('#addTagModal').addClass('hidden');
+            await fetchImageDetails();
+        } catch (error) {
+            showNotification('Failed to add tag', 'error');
+        }
+    });
+
+    // Remove tag button
+    $(document).on('click', '.remove-tag-btn', function() {
+        const tag = $(this).data('tag');
+        $('#removeTagConfirmText').text(`Are you sure you want to remove tag "${tag}"?`);
+        $('#confirmRemoveTag').data('tag', tag);
+        $('#removeTagModal').removeClass('hidden');
+    });
+
+    // Confirm remove tag
+    $('#confirmRemoveTag').click(async function() {
+        const tag = $(this).data('tag');
+        try {
+            await $.ajax({
+                url: `${API_BASE_URL}/images/${tag}`,
+                method: 'DELETE'
+            });
+            
+            showNotification('Tag removed successfully');
+            $('#removeTagModal').addClass('hidden');
+            await fetchImageDetails();
+        } catch (error) {
+            showNotification('Failed to remove tag', 'error');
+        }
+    });
+
+    // Inspect button
+    $('#inspectBtn').click(async function() {
+        try {
+            const response = await $.get(`${API_BASE_URL}/images/${imageId}/json`);
+            inspectEditor.setValue(JSON.stringify(response, null, 2));
+            $('#inspectModal').removeClass('hidden');
+        } catch (error) {
+            showNotification('Failed to inspect image', 'error');
+        }
+    });
+
+    // Copy inspect data
+    $('#copyInspectBtn').click(function() {
+        const content = inspectEditor.getValue();
+        navigator.clipboard.writeText(content)
+            .then(() => {
+                $('#copySuccess').removeClass('hidden');
+                setTimeout(() => {
+                    $('#copySuccess').addClass('hidden');
+                }, 2000);
+            })
+            .catch(() => showNotification('Failed to copy to clipboard', 'error'));
+    });
+
+     // History Button Implementation
+     $('#historyBtn').click(async function() {
+        try {
+            $('#loadingSpinner').removeClass('hidden');
+            const history = await $.get(`${API_BASE_URL}/images/${imageId}/history`);
+            
+            const historyTimeline = $('#historyTimeline').empty();
+            
+            history.forEach((entry, index) => {
+                const html = `
+                    <div class="ml-8 relative pb-8">
+                        <!-- Timeline dot -->
+                        <div class="absolute left-[-1.625rem] mt-1.5">
+                            <div class="h-5 w-5 rounded-full border-2 border-blue-500 bg-white"></div>
+                        </div>
+                        <!-- Content -->
+                        <div class="bg-white rounded-lg shadow p-4">
+                            <div class="flex items-center justify-between">
+                                <span class="text-sm font-medium text-gray-900">Layer ${history.length - index}</span>
+                                <span class="text-sm text-gray-500">${formatBytes(entry.Size || 0)}</span>
+                            </div>
+                            <p class="mt-2 text-sm font-mono text-gray-600">${entry.CreatedBy || 'No command recorded'}</p>
+                            <div class="mt-2 flex items-center space-x-2">
+                                <span class="text-xs text-gray-500">${formatTimestamp(entry.Created)}</span>
+                                <button class="text-xs text-blue-500 hover:text-blue-700 view-layer-detail" 
+                                        data-index="${index}" data-id="${entry.Id || ''}">
+                                    View Details
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                historyTimeline.append(html);
+            });
+
+            $('#historyTimeline').removeClass('hidden').get(0).scrollIntoView({ behavior: 'smooth' });
+        } catch (error) {
+            console.error('Error fetching history:', error);
+            showNotification('Failed to fetch image history', 'error');
+        } finally {
+            $('#loadingSpinner').addClass('hidden');
+        }
+    });
+
+    // Tags Button Implementation
+    $('#tagsBtn').click(function() {
+        $('#tagsSection').removeClass('hidden').get(0).scrollIntoView({ behavior: 'smooth' });
+    });
+
+    // More Actions Button Implementation
+    let moreActionsVisible = false;
+    
+    $('#moreActionsBtn').click(function(e) {
+        e.stopPropagation();
+        moreActionsVisible = !moreActionsVisible;
+        $('#moreActionsMenu').toggleClass('hidden', !moreActionsVisible);
+    });
+
+    // Close more actions menu when clicking outside
+    $(document).click(function() {
+        if (moreActionsVisible) {
+            moreActionsVisible = false;
+            $('#moreActionsMenu').addClass('hidden');
+        }
+    });
+
+    // More Actions Menu Items
+    $('#moreActionsMenu a').click(async function(e) {
+        e.preventDefault();
+        const action = $(this).attr('action');
+        console.log(action);
+        switch(action) {
+            case 'layers':
+                $('#layersSection').removeClass('hidden').get(0).scrollIntoView({ behavior: 'smooth' });
+                break;
+                
+            case 'dockerfile':
+                try {
+                    const history = await $.get(`${API_BASE_URL}/images/${imageId}/history`);
+                    let dockerfile = '# Generated Dockerfile\n\n';
+                    
+                    // Get base image from first command
+                    const baseImage = history[history.length - 1].CreatedBy.match(/from\s+([^\s]+)/i)?.[1] || 'scratch';
+                    dockerfile += `FROM ${baseImage}\n\n`;
+                    
+                    // Add commands from history
+                    history.reverse().forEach(entry => {
+                        if (entry.CreatedBy && !entry.CreatedBy.includes('FROM')) {
+                            dockerfile += `RUN ${entry.CreatedBy}\n`;
+                        }
+                    });
+                    
+                    // Show in Monaco Editor
+                    if (!editor) {
+                        editor = monaco.editor.create(document.getElementById('dockerfileEditor'), {
+                            value: dockerfile,
+                            language: 'dockerfile',
+                            theme: 'vs-dark',
+                            readOnly: true,
+                            minimap: { enabled: false },
+                            automaticLayout: true
+                        });
+                    } else {
+                        editor.setValue(dockerfile);
+                    }
+                    
+                    $('#dockerfileModal').removeClass('hidden');
+                } catch (error) {
+                    showNotification('Failed to generate Dockerfile', 'error');
+                }
+                break;
+                
+            case 'create-container':
+                // Redirect to container creation page with image pre-selected
+                const imageName = imageData.RepoTags?.[0] || imageId;
+                window.location.href = `create-container.html?image=${encodeURIComponent(imageName)}`;
+                break;
+        }
+        
+        // Hide menu after action
+        $('#moreActionsMenu').addClass('hidden');
+        moreActionsVisible = false;
+    });
+
+    // Enhanced Layer Detail View
+    $(document).on('click', '.view-layer-detail', async function() {
+        const index = $(this).data('index');
+        const layerId = $(this).data('id');
+        
+        try {
+            const layer = imageData.RootFS.Layers[index];
+            const created = imageData.Created;
+            const command = imageData.ContainerConfig?.Cmd?.join(' ') || 'N/A';
+
+            // Update layer detail modal content
+            $('#layerDetailId').text(layerId ? layerId.slice(7, 19) : 'N/A');
+            $('#layerDetailCreated').text(formatTimestamp(created));
+            $('#layerDetailSize').text(formatBytes(imageData.Size));
+            $('#layerDetailCommand').html(`<code class="text-xs">${escapeHtml(command)}</code>`);
+
+            // Show directory changes if available
+            const changes = await $.get(`${API_BASE_URL}/images/${imageId}/changes`);
+            const changesContainer = $('#layerDetailChanges').empty();
+            
+            if (changes && changes.length > 0) {
+                changes.forEach(change => {
+                    const changeType = {
+                        0: '<span class="text-yellow-500">Modified</span>',
+                        1: '<span class="text-green-500">Added</span>',
+                        2: '<span class="text-red-500">Deleted</span>'
+                    }[change.Kind] || 'Unknown';
+                    
+                    changesContainer.append(`
+                        <div class="flex items-start space-x-2 text-sm">
+                            <div class="w-20">${changeType}</div>
+                            <div class="flex-1 font-mono break-all">${change.Path}</div>
+                        </div>
+                    `);
+                });
+            } else {
+                changesContainer.append('<p class="text-sm text-gray-500">No changes recorded for this layer</p>');
+            }
+
+            // Show modal
+            $('#layerDetailModal').removeClass('hidden');
+        } catch (error) {
+            console.error('Error fetching layer details:', error);
+            showNotification('Failed to fetch layer details', 'error');
+        }
+    });
+
+    // Fix Inspect Dialog Close
+    $('#inspectModal .modal-close').click(function() {
+        $('#inspectModal').addClass('hidden');
+    });
+
+    // Helper function to escape HTML
+    function escapeHtml(unsafe) {
+        return unsafe
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&#039;");
+    }
+
+    // Close modals
+    $('.modal-close').click(function() {
+        $(this).closest('.modal').addClass('hidden');
+    });
+
+        // Close modals
+    $('#dockerfileModal').click(function() {
+        $(this).addClass('hidden');
+    });
+
+            // Close modals
+    $('#layerDetailModal').click(function() {
+        $(this).addClass('hidden');
+    });
+
+
+    // Close on background click
+    $('.modal').click(function(e) {
+        if (e.target === this) {
+            $(this).addClass('hidden');
+        }
+    });
+
+    // Close on Escape key
+    $(document).keydown(function(e) {
+        if (e.key === 'Escape') {
+            $('.modal').addClass('hidden');
+            $('#dockerfileModal').addClass('hidden');
+            $('#layerDetailModal').addClass('hidden');
+        }
+    });
+
+    // Initialize
+    fetchImageDetails();
+
+    // Set up auto-refresh every 30 seconds
+    //setInterval(fetchImageDetails, 90000);
+});
+</script>
+</body>
+</html>

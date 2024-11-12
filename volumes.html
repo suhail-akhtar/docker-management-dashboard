@@ -1,0 +1,1991 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Docker Volumes Dashboard</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/js/all.min.js"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css" rel="stylesheet">
+    <style>
+        .volume-card:hover {
+            transform: translateY(-5px);
+            transition: transform 0.3s ease;
+        }
+        .truncate-text {
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 200px;
+        }
+    </style>
+</head>
+<body class="bg-gray-100">
+    <div class="min-h-screen">
+        <!-- Navigation -->
+        <nav class="bg-white shadow-lg">
+            <div class="max-w-7xl mx-auto px-4">
+                <div class="flex justify-between items-center py-4">
+                    <div class="flex items-center">
+                        <a href="index.html" class="text-gray-500 hover:text-gray-700 mr-4">
+                            <i class="fas fa-arrow-left"></i> Back to Dashboard
+                        </a>
+                        <i class="fas fa-database text-2xl text-blue-500 mr-2"></i>
+                        <span class="text-xl font-semibold text-gray-800">Volumes Dashboard</span>
+                    </div>
+                    <div class="flex items-center space-x-4">
+                        <button id="createVolumeBtn" class="bg-green-500 text-white px-4 py-2 rounded-md hover:bg-green-600 transition-colors">
+                            <i class="fas fa-plus mr-2"></i>Create Volume
+                        </button>
+                        <button id="pruneVolumesBtn" class="bg-yellow-500 text-white px-4 py-2 rounded-md hover:bg-yellow-600 transition-colors">
+                            <i class="fas fa-broom mr-2"></i>Prune Volumes
+                        </button>
+                        <button id="refreshBtn" class="bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600 transition-colors">
+                            <i class="fas fa-sync-alt mr-2"></i>Refresh
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </nav>
+
+        <!-- Main Content -->
+        <div class="max-w-7xl mx-auto px-4 py-8">
+            <!-- Volume Stats Overview -->
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                <!-- Total Volumes -->
+                <div class="bg-white rounded-lg shadow p-6 volume-card">
+                    <div class="flex items-center">
+                        <div class="p-3 rounded-full bg-blue-100 mr-4">
+                            <i class="fas fa-database text-blue-500"></i>
+                        </div>
+                        <div>
+                            <p class="text-gray-500">Total Volumes</p>
+                            <p class="text-2xl font-semibold" id="totalVolumes">0</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Used Storage -->
+                <div class="bg-white rounded-lg shadow p-6 volume-card">
+                    <div class="flex items-center">
+                        <div class="p-3 rounded-full bg-green-100 mr-4">
+                            <i class="fas fa-hdd text-green-500"></i>
+                        </div>
+                        <div>
+                            <p class="text-gray-500">Used Storage</p>
+                            <p class="text-2xl font-semibold" id="usedStorage">0 GB</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Active Volumes -->
+                <div class="bg-white rounded-lg shadow p-6 volume-card">
+                    <div class="flex items-center">
+                        <div class="p-3 rounded-full bg-purple-100 mr-4">
+                            <i class="fas fa-plug text-purple-500"></i>
+                        </div>
+                        <div>
+                            <p class="text-gray-500">Active Volumes</p>
+                            <p class="text-2xl font-semibold" id="activeVolumes">0</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Dangling Volumes -->
+                <div class="bg-white rounded-lg shadow p-6 volume-card">
+                    <div class="flex items-center">
+                        <div class="p-3 rounded-full bg-red-100 mr-4">
+                            <i class="fas fa-unlink text-red-500"></i>
+                        </div>
+                        <div>
+                            <p class="text-gray-500">Dangling Volumes</p>
+                            <p class="text-2xl font-semibold" id="danglingVolumes">0</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Search and Filter Bar -->
+            <div class="bg-white rounded-lg shadow mb-8">
+                <div class="p-6">
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <!-- Search -->
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Search Volumes</label>
+                            <div class="relative">
+                                <input type="text" id="volumeSearch" placeholder="Search by name or label..."
+                                    class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                                <div class="absolute inset-y-0 right-0 pr-3 flex items-center">
+                                    <i class="fas fa-search text-gray-400"></i>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Filter -->
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Filter By</label>
+                            <select id="volumeFilter" class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                                <option value="all">All Volumes</option>
+                                <option value="active">Active</option>
+                                <option value="dangling">Dangling</option>
+                                <option value="local">Local Driver</option>
+                                <option value="custom">Custom Drivers</option>
+                            </select>
+                        </div>
+
+                        <!-- Sort -->
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Sort By</label>
+                            <select id="volumeSort" class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                                <option value="name">Name</option>
+                                <option value="created">Created Date</option>
+                                <option value="size">Size</option>
+                                <option value="driver">Driver</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Volumes List -->
+            <div class="bg-white rounded-lg shadow mb-8">
+                <div class="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
+                    <h2 class="text-lg font-semibold text-gray-800">Docker Volumes</h2>
+                    <div class="flex items-center space-x-2">
+                        <span class="text-sm text-gray-500" id="volumeCount">0 volumes</span>
+                    </div>
+                </div>
+                <div class="p-6">
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full divide-y divide-gray-200">
+                            <thead>
+                                <tr>
+                                    <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
+                                    <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Driver</th>
+                                    <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Mount Point</th>
+                                    <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Size</th>
+                                    <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Created</th>
+                                    <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                                    <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody class="bg-white divide-y divide-gray-200" id="volumesList">
+                                <!-- Volume rows will be inserted here -->
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Pagination -->
+                    <div class="mt-4 flex items-center justify-between">
+                        <div class="flex items-center">
+                            <select id="pageSize" class="mr-4 px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                                <option value="10">10 per page</option>
+                                <option value="20">20 per page</option>
+                                <option value="50">50 per page</option>
+                                <option value="100">100 per page</option>
+                            </select>
+                            <span class="text-sm text-gray-500" id="paginationInfo">
+                                Showing <span id="showingFrom">0</span> to <span id="showingTo">0</span> of <span id="totalItems">0</span> volumes
+                            </span>
+                        </div>
+                        <div class="flex items-center space-x-2">
+                            <button id="prevPage" class="px-3 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50">
+                                Previous
+                            </button>
+                            <div id="pageNumbers" class="flex space-x-2">
+                                <!-- Page numbers will be inserted here -->
+                            </div>
+                            <button id="nextPage" class="px-3 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50">
+                                Next
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- Create Volume Modal -->
+<div id="createVolumeModal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full">
+    <div class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+        <div class="flex justify-between items-center pb-3">
+            <h3 class="text-xl font-semibold">Create New Volume</h3>
+            <button id="closeCreateVolumeModal" class="text-gray-400 hover:text-gray-500">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <form id="createVolumeForm" class="space-y-4">
+            <div>
+                <label class="block text-sm font-medium text-gray-700">Volume Name</label>
+                <input type="text" id="volumeName" name="volumeName" required
+                    placeholder="Enter volume name"
+                    class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700">Driver</label>
+                <select id="volumeDriver" name="volumeDriver" required
+                    class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                    <option value="local">local</option>
+                    <option value="nfs">nfs</option>
+                    <option value="ceph">ceph</option>
+                    <option value="glusterfs">glusterfs</option>
+                    <option value="custom">Custom Driver</option>
+                </select>
+            </div>
+
+            <!-- Custom Driver Input (hidden by default) -->
+            <div id="customDriverInput" class="hidden">
+                <label class="block text-sm font-medium text-gray-700">Custom Driver Name</label>
+                <input type="text" id="customDriverName" name="customDriverName"
+                    placeholder="Enter custom driver name"
+                    class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+            </div>
+
+            <!-- Driver Options Section -->
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Driver Options</label>
+                <div id="driverOptions" class="space-y-2">
+                    <!-- Options will be dynamically added here -->
+                </div>
+                <button type="button" id="addDriverOptionBtn"
+                    class="mt-2 text-sm text-blue-600 hover:text-blue-800">
+                    <i class="fas fa-plus mr-1"></i>Add Driver Option
+                </button>
+            </div>
+
+            <!-- Volume Labels Section -->
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Labels</label>
+                <div id="volumeLabels" class="space-y-2">
+                    <!-- Labels will be dynamically added here -->
+                </div>
+                <button type="button" id="addLabelBtn"
+                    class="mt-2 text-sm text-blue-600 hover:text-blue-800">
+                    <i class="fas fa-plus mr-1"></i>Add Label
+                </button>
+            </div>
+
+            <div class="pt-4">
+                <button type="submit"
+                    class="w-full px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    Create Volume
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Prune Volumes Modal -->
+<div id="pruneModal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full">
+    <div class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+        <div class="mt-3 text-center">
+            <div class="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-yellow-100">
+                <i class="fas fa-exclamation-triangle text-yellow-600"></i>
+            </div>
+            <h3 class="text-lg leading-6 font-medium text-gray-900 mt-4">Prune Docker Volumes</h3>
+            <div class="mt-2 px-7 py-3">
+                <p class="text-sm text-gray-500">
+                    This will remove all unused volumes. Volumes that are still referenced by at least one container will not be removed.
+                    This operation cannot be undone.
+                </p>
+                <div class="mt-4 bg-gray-50 p-3 rounded-lg">
+                    <p class="text-sm font-medium text-gray-700">Volumes to be removed:</p>
+                    <p id="volumesToRemove" class="text-lg font-semibold text-red-600">Calculating...</p>
+                    <p class="text-sm font-medium text-gray-700 mt-2">Space to be freed:</p>
+                    <p id="spaceToFree" class="text-lg font-semibold text-blue-600">Calculating...</p>
+                </div>
+            </div>
+            <div class="flex justify-center mt-4 space-x-4">
+                <button id="cancelPrune" class="px-4 py-2 bg-gray-500 text-white text-base font-medium rounded-md shadow-sm hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-gray-300">
+                    Cancel
+                </button>
+                <button id="confirmPrune" class="px-4 py-2 bg-red-500 text-white text-base font-medium rounded-md shadow-sm hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-red-300">
+                    Prune Volumes
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Remove Volume Confirmation Modal -->
+<div id="removeVolumeConfirmModal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full">
+    <div class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+        <div class="mt-3 text-center">
+            <div class="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-red-100">
+                <i class="fas fa-exclamation-triangle text-red-600"></i>
+            </div>
+            <h3 class="text-lg leading-6 font-medium text-gray-900 mt-4">Remove Volume</h3>
+            <div class="mt-2 px-7 py-3">
+                <p class="text-sm text-gray-500">
+                    Are you sure you want to remove volume "<span id="removeVolumeName" class="font-semibold"></span>"?
+                </p>
+                <div class="mt-4 bg-red-50 p-3 rounded-lg">
+                    <p class="text-sm text-red-600">
+                        Warning: This action cannot be undone. All data in this volume will be permanently lost.
+                    </p>
+                    <div id="volumeUsageWarning" class="hidden mt-2">
+                        <p class="text-sm font-medium text-red-800">
+                            This volume is currently in use by the following containers:
+                        </p>
+                        <ul id="volumeUsageList" class="mt-1 text-sm text-red-600 list-disc list-inside">
+                            <!-- Container list will be inserted here -->
+                        </ul>
+                    </div>
+                </div>
+                <div class="mt-4">
+                    <label class="flex items-center justify-center">
+                        <input type="checkbox" id="confirmRemoveCheckbox" class="form-checkbox h-4 w-4 text-red-600">
+                        <span class="ml-2 text-sm text-gray-600">I understand this action cannot be undone</span>
+                    </label>
+                </div>
+            </div>
+            <div class="flex justify-center mt-4 space-x-4">
+                <button id="cancelRemoveVolume" class="px-4 py-2 bg-gray-500 text-white text-base font-medium rounded-md shadow-sm hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-gray-300">
+                    Cancel
+                </button>
+                <button id="confirmRemoveVolume" class="px-4 py-2 bg-red-500 text-white text-base font-medium rounded-md shadow-sm hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-red-300" disabled>
+                    Remove Volume
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Loading Spinner -->
+<div id="loadingSpinner" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full">
+    <div class="relative top-20 mx-auto p-5 border w-32 shadow-lg rounded-md bg-white">
+        <div class="flex justify-center">
+            <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+        </div>
+    </div>
+</div>
+
+<!-- Notification Container -->
+<div id="notificationContainer" class="fixed top-4 right-4 z-50 space-y-2">
+    <!-- Notifications will be dynamically inserted here -->
+</div>
+
+<!-- Status Bar -->
+<div id="statusBar" class="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 py-2 px-4">
+    <div class="max-w-7xl mx-auto flex justify-between items-center">
+        <div class="flex items-center space-x-4">
+            <span class="text-sm text-gray-500">
+                <i class="fas fa-circle text-green-500 text-xs"></i>
+                <span id="connectionStatus" class="ml-1">Connected to Docker</span>
+            </span>
+            <span class="text-sm text-gray-500">
+                <i class="fas fa-database mr-1"></i>
+                <span id="volumeCount">0 volumes</span>
+            </span>
+            <span class="text-sm text-gray-500">
+                <i class="fas fa-hdd mr-1"></i>
+                <span id="totalStorage">0 GB used</span>
+            </span>
+        </div>
+        <div class="flex items-center space-x-4">
+            <button id="toggleQuickActions" class="text-gray-500 hover:text-gray-700">
+                <i class="fas fa-bolt"></i>
+            </button>
+            <button id="showShortcuts" class="text-gray-500 hover:text-gray-700">
+                <i class="fas fa-keyboard"></i>
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Keyboard Shortcuts Guide -->
+<div id="keyboardShortcutsGuide" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full">
+    <div class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+        <div class="flex justify-between items-center pb-3">
+            <h3 class="text-lg font-medium text-gray-900">Keyboard Shortcuts</h3>
+            <button id="closeShortcutsGuide" class="text-gray-400 hover:text-gray-500">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="mt-4 space-y-4">
+            <div class="flex justify-between items-center">
+                <span class="text-sm text-gray-500">Create New Volume</span>
+                <kbd class="px-2 py-1 text-xs text-gray-700 bg-gray-100 border border-gray-300 rounded">Ctrl + N</kbd>
+            </div>
+            <div class="flex justify-between items-center">
+                <span class="text-sm text-gray-500">Refresh List</span>
+                <kbd class="px-2 py-1 text-xs text-gray-700 bg-gray-100 border border-gray-300 rounded">Ctrl + R</kbd>
+            </div>
+            <div class="flex justify-between items-center">
+                <span class="text-sm text-gray-500">Search Volumes</span>
+                <kbd class="px-2 py-1 text-xs text-gray-700 bg-gray-100 border border-gray-300 rounded">Ctrl + F</kbd>
+            </div>
+            <div class="flex justify-between items-center">
+                <span class="text-sm text-gray-500">Toggle Quick Actions</span>
+                <kbd class="px-2 py-1 text-xs text-gray-700 bg-gray-100 border border-gray-300 rounded">Ctrl + Q</kbd>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="debugOutput" class="hidden fixed bottom-0 right-0 bg-black text-white p-4">
+    <!-- Debug messages will appear here -->
+</div>
+
+<script>
+$(document).ready(function() {
+    // Configuration and Constants
+    const API_BASE_URL = 'http://172.22.106.116:2370';
+    const DEFAULT_PAGE_SIZE = 10;
+    const REFRESH_INTERVAL = 30000; // 30 seconds
+    
+    // State Management
+    let volumesData = [];
+    let filteredVolumes = [];
+    let currentPage = 1;
+    let pageSize = parseInt($('#pageSize').val()) || DEFAULT_PAGE_SIZE;
+    let selectedVolume = null;
+    let isLoading = false;
+    let lastError = null;
+    let activeOperations = new Map();
+    let debugMode = false;
+
+    // Utility Functions
+    function formatBytes(bytes) {
+        if (bytes === 0) return '0 B';
+        const k = 1024;
+        const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    }
+
+    function formatTimestamp(timestamp) {
+        const date = new Date(timestamp);
+        const now = new Date();
+        const diff = now - date;
+        
+        // Less than a minute
+        if (diff < 60000) return 'Just now';
+        
+        // Less than an hour
+        if (diff < 3600000) {
+            const minutes = Math.floor(diff / 60000);
+            return `${minutes}m ago`;
+        }
+        
+        // Less than a day
+        if (diff < 86400000) {
+            const hours = Math.floor(diff / 3600000);
+            return `${hours}h ago`;
+        }
+        
+        // Less than a week
+        if (diff < 604800000) {
+            const days = Math.floor(diff / 86400000);
+            return `${days}d ago`;
+        }
+        
+        // Default to date string
+        return date.toLocaleDateString();
+    }
+
+    function getVolumeStatus(volume) {
+        if (!volume) return { text: 'Unknown', class: 'bg-gray-100 text-gray-800' };
+        
+        if (volume.UsageData && volume.UsageData.RefCount > 0) {
+            return { text: 'In Use', class: 'bg-green-100 text-green-800' };
+        }
+        
+        if (volume.Labels && Object.keys(volume.Labels).length > 0) {
+            return { text: 'Configured', class: 'bg-blue-100 text-blue-800' };
+        }
+        
+        return { text: 'Available', class: 'bg-yellow-100 text-yellow-800' };
+    }
+
+    // Debug Logging
+    function debugLog(message, data = null) {
+        if (!debugMode) return;
+        
+        const timestamp = new Date().toISOString().split('T')[1].slice(0, -1);
+        console.log(`[${timestamp}] ${message}`, data);
+    }
+
+    // Error Handling
+    function handleError(error, context = '') {
+        debugLog('Error occurred', { context, error });
+        lastError = error;
+        
+        let errorMessage = 'An error occurred';
+        if (error.responseJSON && error.responseJSON.message) {
+            errorMessage = error.responseJSON.message;
+        } else if (error.message) {
+            errorMessage = error.message;
+        }
+        
+        showNotification(errorMessage, 'error');
+        
+        if (context === 'initialization') {
+            $('#errorOverlay').removeClass('hidden');
+            $('#errorMessage').text(errorMessage);
+        }
+    }
+
+   // Updated Notification System
+function showNotification(message, type = 'info', duration = 8000) { // Increased to 8 seconds
+    const icons = {
+        success: '<i class="fas fa-check-circle text-2xl"></i>',
+        error: '<i class="fas fa-exclamation-circle text-2xl"></i>',
+        warning: '<i class="fas fa-exclamation-triangle text-2xl"></i>',
+        info: '<i class="fas fa-info-circle text-2xl"></i>'
+    };
+
+    const colors = {
+        success: 'bg-green-100 border-green-500 text-green-700',
+        error: 'bg-red-100 border-red-500 text-red-700',
+        warning: 'bg-yellow-100 border-yellow-500 text-yellow-700',
+        info: 'bg-blue-100 border-blue-500 text-blue-700'
+    };
+
+    // Create notification element with increased size and improved styling
+    const toast = $(`
+        <div class="notification-toast max-w-xl w-full bg-white shadow-lg rounded-lg pointer-events-auto 
+             ring-1 ring-black ring-opacity-5 overflow-hidden transform transition-all duration-300 
+             opacity-0 translate-y-2 fixed top-4 right-4 z-50">
+            <div class="p-4">
+                <div class="flex items-start">
+                    <div class="flex-shrink-0 ${colors[type].split(' ')[2]} pt-0.5">
+                        ${icons[type]}
+                    </div>
+                    <div class="ml-3 w-0 flex-1">
+                        <p class="text-base font-medium text-gray-900">
+                            ${message}
+                        </p>
+                    </div>
+                    <div class="ml-4 flex-shrink-0 flex">
+                        <button class="rounded-md inline-flex text-gray-400 hover:text-gray-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                            <span class="sr-only">Close</span>
+                            <i class="fas fa-times text-xl"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <div class="notification-progress h-1 bg-gray-200">
+                <div class="h-1 ${colors[type].split(' ')[0]} transition-all duration-linear" style="width: 100%"></div>
+            </div>
+        </div>
+    `);
+
+    // Add to notification container
+    const container = $('#notificationContainer');
+    if (container.length === 0) {
+        $('body').append('<div id="notificationContainer" class="fixed right-4 top-4 space-y-4 z-50"></div>');
+    }
+
+    // Handle stacking of multiple notifications
+    const existingNotifications = $('.notification-toast').length;
+    if (existingNotifications > 0) {
+        toast.css('top', `${(existingNotifications * 120) + 16}px`);
+    }
+
+    toast.appendTo('#notificationContainer');
+
+    // Animate in
+    setTimeout(() => {
+        toast.removeClass('opacity-0 translate-y-2');
+    }, 10);
+
+    // Progress bar animation
+    const progressBar = toast.find('.notification-progress div');
+    progressBar.css('transition', `width ${duration}ms linear`);
+    setTimeout(() => {
+        progressBar.css('width', '0%');
+    }, 50);
+
+    // Set up close button
+    toast.find('button').click(() => {
+        removeToast(toast);
+    });
+
+    // Auto remove after duration
+    const timeoutId = setTimeout(() => {
+        removeToast(toast);
+    }, duration);
+
+    // Store timeout ID
+    toast.data('timeoutId', timeoutId);
+
+    // Pause progress bar on hover
+    toast.hover(
+        function() {
+            // On hover in
+            clearTimeout($(this).data('timeoutId'));
+            const progressBar = $(this).find('.notification-progress div');
+            const currentWidth = progressBar.width() / progressBar.parent().width() * 100;
+            progressBar.css({
+                'transition': 'none',
+                'width': `${currentWidth}%`
+            });
+        },
+        function() {
+            // On hover out
+            const progressBar = $(this).find('.notification-progress div');
+            const currentWidth = progressBar.width() / progressBar.parent().width() * 100;
+            const remainingTime = (duration * currentWidth) / 100;
+
+            progressBar.css({
+                'transition': `width ${remainingTime}ms linear`,
+                'width': '0%'
+            });
+
+            const timeoutId = setTimeout(() => {
+                removeToast($(this));
+            }, remainingTime);
+            $(this).data('timeoutId', timeoutId);
+        }
+    );
+}
+
+function removeToast(toast) {
+    // Clear any existing timeout
+    clearTimeout(toast.data('timeoutId'));
+
+    // Animate out
+    toast.addClass('opacity-0 translate-y-2');
+    
+    // Remove after animation
+    setTimeout(() => {
+        toast.remove();
+        // Reposition remaining notifications
+        $('.notification-toast').each(function(index) {
+            $(this).animate({
+                top: `${(index * 120) + 16}px`
+            }, 300);
+        });
+    }, 300);
+}
+
+// Add required styles to head
+$('head').append(`
+    <style>
+        .notification-toast {
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            min-width: 400px;
+        }
+        .notification-toast:hover .notification-progress div {
+            transition: none;
+        }
+        @keyframes slideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+        @keyframes slideOut {
+            from { transform: translateX(0); opacity: 1; }
+            to { transform: translateX(100%); opacity: 0; }
+        }
+        .notification-progress {
+            position: relative;
+            overflow: hidden;
+        }
+    </style>
+`);
+
+
+    // Volume Data Management
+    async function fetchVolumes() {
+        try {
+            isLoading = true;
+            updateLoadingState();
+            
+            const [volumes, containers] = await Promise.all([
+                $.get(`${API_BASE_URL}/volumes`),
+                $.get(`${API_BASE_URL}/containers/json?all=true`)
+            ]);
+
+            // Process volumes and add additional metadata
+            volumesData = volumes.Volumes.map(volume => ({
+                ...volume,
+                UsageData: getVolumeUsageData(volume, containers),
+                Status: getVolumeStatus(volume)
+            }));
+
+            debugLog('Fetched volumes data', { count: volumesData.length });
+            updateDashboardStats();
+            applyFiltersAndSort();
+            
+        } catch (error) {
+            handleError(error, 'fetch_volumes');
+        } finally {
+            isLoading = false;
+            updateLoadingState();
+        }
+    }
+
+    function getVolumeUsageData(volume, containers) {
+        const usageData = {
+            RefCount: 0,
+            Containers: []
+        };
+
+        containers.forEach(container => {
+            const mounts = container.Mounts || [];
+            mounts.forEach(mount => {
+                if (mount.Type === 'volume' && mount.Name === volume.Name) {
+                    usageData.RefCount++;
+                    usageData.Containers.push({
+                        Id: container.Id,
+                        Name: container.Names[0].replace('/', ''),
+                        State: container.State,
+                        MountPoint: mount.Destination
+                    });
+                }
+            });
+        });
+
+        return usageData;
+    }
+
+    function updateDashboardStats() {
+        const totalVolumes = volumesData.length;
+        const activeVolumes = volumesData.filter(v => v.UsageData.RefCount > 0).length;
+        const danglingVolumes = volumesData.filter(v => v.UsageData.RefCount === 0).length;
+        
+        let totalSize = 0;
+        volumesData.forEach(volume => {
+            if (volume.UsageData && volume.UsageData.Size) {
+                totalSize += volume.UsageData.Size;
+            }
+        });
+
+        $('#totalVolumes').text(totalVolumes);
+        $('#activeVolumes').text(activeVolumes);
+        $('#danglingVolumes').text(danglingVolumes);
+        $('#usedStorage').text(formatBytes(totalSize));
+        
+        // Update status bar
+        $('#volumeCount').text(`${totalVolumes} volumes`);
+        $('#totalStorage').text(`${formatBytes(totalSize)} used`);
+        updateConnectionStatus();
+    }
+
+    // Connection Status
+    function updateConnectionStatus() {
+        const statusElement = $('#connectionStatus');
+        const iconElement = statusElement.prev('i');
+        
+        if (lastError) {
+            statusElement.text('Connection Error');
+            iconElement.removeClass('text-green-500').addClass('text-red-500');
+        } else {
+            statusElement.text('Connected to Docker');
+            iconElement.removeClass('text-red-500').addClass('text-green-500');
+        }
+    }
+
+    // Progress Tracking
+    function startOperation(id, name) {
+        const operation = {
+            id,
+            name,
+            startTime: Date.now(),
+            progress: 0,
+            status: 'running'
+        };
+        
+        activeOperations.set(id, operation);
+        updateProgressUI();
+        return operation;
+    }
+
+    function updateOperation(id, progress, status = 'running') {
+        const operation = activeOperations.get(id);
+        if (operation) {
+            operation.progress = progress;
+            operation.status = status;
+            updateProgressUI();
+        }
+    }
+
+    function completeOperation(id, success = true) {
+        const operation = activeOperations.get(id);
+        if (operation) {
+            operation.progress = 100;
+            operation.status = success ? 'completed' : 'failed';
+            operation.endTime = Date.now();
+            updateProgressUI();
+            
+            setTimeout(() => {
+                activeOperations.delete(id);
+                updateProgressUI();
+            }, 2000);
+        }
+    }
+
+    function updateProgressUI() {
+        const hasActiveOperations = activeOperations.size > 0;
+        $('#loadingSpinner').toggleClass('hidden', !hasActiveOperations);
+    }
+
+    // Initial Setup
+    function initialize() {
+        debugLog('Initializing volumes dashboard');
+        setupEventListeners();
+        fetchVolumes();
+        setInterval(fetchVolumes, REFRESH_INTERVAL);
+    }
+
+    function setupEventListeners() {
+        // Refresh button
+        $('#refreshBtn').click(() => {
+            $(this).find('i').addClass('animate-spin');
+            fetchVolumes().finally(() => {
+                setTimeout(() => {
+                    $(this).find('i').removeClass('animate-spin');
+                }, 500);
+            });
+        });
+
+        // Debug mode toggle
+        $(document).keydown(function(e) {
+            if (e.ctrlKey && e.shiftKey && e.key === 'D') {
+                debugMode = !debugMode;
+                showNotification(
+                    `Debug mode ${debugMode ? 'enabled' : 'disabled'}`,
+                    debugMode ? 'info' : 'warning'
+                );
+            }
+        });
+    }
+
+    function updateLoadingState() {
+        $('#loadingSpinner').toggleClass('hidden', !isLoading);
+        $('#refreshBtn').prop('disabled', isLoading);
+    }
+
+        // Volume Operations
+        async function createVolume(volumeData) {
+        try {
+            const operationId = `create-${Date.now()}`;
+            startOperation(operationId, 'Creating volume');
+            
+            // Prepare volume configuration
+            const config = {
+                Name: volumeData.name,
+                Driver: volumeData.driver === 'custom' ? volumeData.customDriver : volumeData.driver,
+                DriverOpts: {},
+                Labels: {}
+            };
+
+            // Add driver options
+            volumeData.driverOptions.forEach(opt => {
+                if (opt.key && opt.value) {
+                    config.DriverOpts[opt.key] = opt.value;
+                }
+            });
+
+            // Add labels
+            volumeData.labels.forEach(label => {
+                if (label.key && label.value) {
+                    config.Labels[label.key] = label.value;
+                }
+            });
+
+            debugLog('Creating volume with config', config);
+
+            const response = await $.ajax({
+                url: `${API_BASE_URL}/volumes/create`,
+                method: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify(config)
+            });
+
+            completeOperation(operationId, true);
+            showNotification(`Volume "${response.Name}" created successfully`, 'success');
+            await fetchVolumes();
+            return response;
+
+        } catch (error) {
+            completeOperation(operationId, false);
+            handleError(error, 'create_volume');
+            throw error;
+        }
+    }
+
+    async function removeVolume(volumeName, force = false) {
+        try {
+            const operationId = `remove-${Date.now()}`;
+            startOperation(operationId, `Removing volume "${volumeName}"`);
+
+            await $.ajax({
+                url: `${API_BASE_URL}/volumes/${volumeName}?force=${force}`,
+                method: 'DELETE'
+            });
+
+            completeOperation(operationId, true);
+            showNotification(`Volume "${volumeName}" removed successfully`, 'success');
+            await fetchVolumes();
+
+        } catch (error) {
+            completeOperation(operationId, false);
+            handleError(error, 'remove_volume');
+            throw error;
+        }
+    }
+
+    // Fixed Prune Volumes Implementation
+async function pruneVolumes() {
+    try {
+        debugLog('Starting volume prune operation');
+        
+        // First, get a list of unused volumes
+        const unusedVolumes = await getUnusedVolumes();
+        debugLog('Found unused volumes:', unusedVolumes);
+
+        if (unusedVolumes.length === 0) {
+            showNotification('No unused volumes found to prune', 'info');
+            return { VolumesDeleted: [], SpaceReclaimed: 0 };
+        }
+
+        // Perform the prune operation
+        const response = await $.ajax({
+            url: `${API_BASE_URL}/volumes/prune`,
+            method: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify({
+                filters: {
+                    dangling: ["true"]
+                }
+            })
+        });
+
+        debugLog('Prune operation response:', response);
+
+        // If no volumes were deleted but we found unused volumes,
+        // try to delete them individually
+        if ((!response.VolumesDeleted || response.VolumesDeleted.length === 0) && unusedVolumes.length > 0) {
+            debugLog('No volumes pruned via prune API, attempting individual deletion');
+            
+            const deletedVolumes = [];
+            let totalSpaceReclaimed = 0;
+
+            for (const volume of unusedVolumes) {
+                try {
+                    // Double check if volume is still unused
+                    const usage = await getVolumeUsage(volume.Name);
+                    if (usage.length === 0) {
+                        await $.ajax({
+                            url: `${API_BASE_URL}/volumes/${volume.Name}`,
+                            method: 'DELETE'
+                        });
+                        deletedVolumes.push(volume.Name);
+                        totalSpaceReclaimed += (volume.UsageData?.Size || 0);
+                        debugLog(`Successfully deleted volume: ${volume.Name}`);
+                    } else {
+                        debugLog(`Volume ${volume.Name} is in use, skipping`);
+                    }
+                } catch (err) {
+                    debugLog(`Error deleting volume ${volume.Name}:`, err);
+                    // Continue with other volumes even if one fails
+                }
+            }
+
+            return {
+                VolumesDeleted: deletedVolumes,
+                SpaceReclaimed: totalSpaceReclaimed
+            };
+        }
+
+        return response;
+
+    } catch (error) {
+        debugLog('Error in pruneVolumes:', error);
+        throw error;
+    }
+}
+
+// Helper function to get unused volumes
+async function getUnusedVolumes() {
+    try {
+        // Get all volumes and containers
+        const [volumesResponse, containersResponse] = await Promise.all([
+            $.get(`${API_BASE_URL}/volumes`),
+            $.get(`${API_BASE_URL}/containers/json?all=true`)
+        ]);
+
+        const volumes = volumesResponse.Volumes || [];
+        const containers = containersResponse || [];
+
+        // Create a set of volume names that are in use
+        const usedVolumes = new Set();
+        containers.forEach(container => {
+            (container.Mounts || []).forEach(mount => {
+                if (mount.Type === 'volume') {
+                    usedVolumes.add(mount.Name);
+                }
+            });
+        });
+
+        // Filter out volumes that are in use
+        return volumes.filter(volume => !usedVolumes.has(volume.Name));
+
+    } catch (error) {
+        debugLog('Error in getUnusedVolumes:', error);
+        throw error;
+    }
+}
+
+// Enhanced volume usage check
+async function getVolumeUsage(volumeName) {
+    try {
+        const containers = await $.get(`${API_BASE_URL}/containers/json?all=true`);
+        
+        return containers.filter(container => {
+            return (container.Mounts || []).some(mount => 
+                mount.Type === 'volume' && 
+                mount.Name === volumeName
+            );
+        }).map(container => ({
+            id: container.Id.slice(0, 12),
+            name: container.Names[0].replace('/', ''),
+            state: container.State,
+            mountPoint: container.Mounts.find(m => m.Name === volumeName)?.Destination
+        }));
+    } catch (error) {
+        debugLog('Error in getVolumeUsage:', error);
+        throw error;
+    }
+}
+
+// Update the prune button handler
+function setupPruneVolumesHandlers() {
+    $('#pruneVolumesBtn').click(async () => {
+        try {
+            $('#pruneVolumesBtn').prop('disabled', true).html(`
+                <i class="fas fa-spinner fa-spin mr-2"></i>Calculating...
+            `);
+
+            const unusedVolumes = await getUnusedVolumes();
+            
+            if (unusedVolumes.length === 0) {
+                showNotification('No unused volumes to prune', 'info');
+                return;
+            }
+
+            const totalSize = unusedVolumes.reduce((sum, vol) => sum + (vol.UsageData?.Size || 0), 0);
+
+            // Update modal content
+            $('#volumesToRemove').html(`
+                <p class="text-lg font-semibold text-gray-900 mb-2">Volumes to be removed:</p>
+                <p class="text-xl font-bold text-red-600 mb-4">${unusedVolumes.length}</p>
+                <div class="max-h-60 overflow-y-auto text-sm">
+                    ${unusedVolumes.map(vol => `
+                        <div class="py-1">
+                            <i class="fas fa-trash-alt text-red-500 mr-2"></i>
+                            ${vol.Name}
+                        </div>
+                    `).join('')}
+                </div>
+            `);
+
+            $('#spaceToFree').html(`
+                <p class="text-lg font-semibold text-gray-900 mb-2">Space to be freed:</p>
+                <p class="text-xl font-bold text-blue-600">${formatBytes(totalSize)}</p>
+                <p class="text-sm text-gray-500">Estimated space to be reclaimed</p>
+            `);
+
+            $('#pruneModal').removeClass('hidden');
+
+        } catch (error) {
+            handleError(error, 'prune_calculation');
+            showNotification('Failed to calculate prune impact', 'error');
+        } finally {
+            $('#pruneVolumesBtn').prop('disabled', false).html(`
+                <i class="fas fa-broom mr-2"></i>Prune Volumes
+            `);
+        }
+    });
+
+    // Confirm prune handler
+    $('#confirmPrune').click(async () => {
+        try {
+            $('#confirmPrune').prop('disabled', true)
+                .html('<i class="fas fa-spinner fa-spin mr-2"></i>Pruning...');
+            $('#cancelPrune').prop('disabled', true);
+
+            const result = await pruneVolumes();
+            const deletedCount = result.VolumesDeleted?.length || 0;
+
+            if (deletedCount > 0) {
+                showNotification(
+                    `Successfully pruned ${deletedCount} volumes. ` +
+                    `Space reclaimed: ${formatBytes(result.SpaceReclaimed || 0)}`,
+                    'success'
+                );
+                await fetchVolumes(); // Refresh the volume list
+            } else {
+                showNotification(
+                    'No volumes were pruned. Volumes might be in use or protected.',
+                    'warning'
+                );
+            }
+
+            $('#pruneModal').addClass('hidden');
+
+        } catch (error) {
+            handleError(error, 'prune_volumes');
+            showNotification(
+                'Failed to prune volumes: ' + (error.responseJSON?.message || error.message), 
+                'error'
+            );
+        } finally {
+            $('#confirmPrune').prop('disabled', false).html('Prune Volumes');
+            $('#cancelPrune').prop('disabled', false);
+        }
+    });
+}
+
+    // Filtering and Sorting Implementation
+    function applyFiltersAndSort() {
+        const searchTerm = $('#volumeSearch').val().toLowerCase();
+        const filterType = $('#volumeFilter').val();
+        const sortType = $('#volumeSort').val();
+
+        // Reset filtered volumes
+        filteredVolumes = [...volumesData];
+
+        // Apply search filter
+        if (searchTerm) {
+            filteredVolumes = filteredVolumes.filter(volume => {
+                return volume.Name.toLowerCase().includes(searchTerm) ||
+                    Object.entries(volume.Labels || {}).some(([key, value]) => 
+                        key.toLowerCase().includes(searchTerm) || 
+                        value.toLowerCase().includes(searchTerm)
+                    );
+            });
+        }
+
+        // Apply type filter
+        switch (filterType) {
+            case 'active':
+                filteredVolumes = filteredVolumes.filter(v => v.UsageData?.RefCount > 0);
+                break;
+            case 'dangling':
+                filteredVolumes = filteredVolumes.filter(v => !v.UsageData?.RefCount || v.UsageData.RefCount === 0);
+                break;
+            case 'local':
+                filteredVolumes = filteredVolumes.filter(v => v.Driver === 'local');
+                break;
+            case 'custom':
+                filteredVolumes = filteredVolumes.filter(v => v.Driver !== 'local');
+                break;
+        }
+
+        // Apply sorting
+        filteredVolumes.sort((a, b) => {
+            switch (sortType) {
+                case 'name':
+                    return a.Name.localeCompare(b.Name);
+                case 'created':
+                    return new Date(b.CreatedAt || 0) - new Date(a.CreatedAt || 0);
+                case 'size':
+                    return (b.UsageData?.Size || 0) - (a.UsageData?.Size || 0);
+                case 'driver':
+                    return a.Driver.localeCompare(b.Driver);
+                default:
+                    return 0;
+            }
+        });
+
+        // Reset to first page and update display
+        currentPage = 1;
+        updatePagination();
+        displayCurrentPage();
+    }
+
+    // Form Handling
+    function resetCreateVolumeForm() {
+        $('#createVolumeForm')[0].reset();
+        $('#customDriverInput').addClass('hidden');
+        $('#driverOptions').empty();
+        $('#volumeLabels').empty();
+        addDriverOptionRow(); // Add one empty driver option row
+        addLabelRow(); // Add one empty label row
+    }
+
+    function addDriverOptionRow() {
+        const rowHtml = `
+            <div class="driver-option-row flex items-center space-x-2 mb-2">
+                <input type="text" placeholder="Option key"
+                    class="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                <input type="text" placeholder="Option value"
+                    class="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                <button type="button" class="remove-driver-option text-red-500 hover:text-red-700">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+        `;
+        $('#driverOptions').append(rowHtml);
+    }
+
+    function addLabelRow() {
+        const rowHtml = `
+            <div class="label-row flex items-center space-x-2 mb-2">
+                <input type="text" placeholder="Label key"
+                    class="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                <input type="text" placeholder="Label value"
+                    class="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                <button type="button" class="remove-label text-red-500 hover:text-red-700">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+        `;
+        $('#volumeLabels').append(rowHtml);
+    }
+
+    function getDriverOptions() {
+        const options = [];
+        $('.driver-option-row').each(function() {
+            const key = $(this).find('input').eq(0).val().trim();
+            const value = $(this).find('input').eq(1).val().trim();
+            if (key && value) {
+                options.push({ key, value });
+            }
+        });
+        return options;
+    }
+
+    function getLabels() {
+        const labels = [];
+        $('.label-row').each(function() {
+            const key = $(this).find('input').eq(0).val().trim();
+            const value = $(this).find('input').eq(1).val().trim();
+            if (key && value) {
+                labels.push({ key, value });
+            }
+        });
+        return labels;
+    }
+
+    // Validation
+    function validateVolumeData(data) {
+        if (!data.name) {
+            showNotification('Volume name is required', 'error');
+            return false;
+        }
+
+        if (data.driver === 'custom' && !data.customDriver) {
+            showNotification('Custom driver name is required', 'error');
+            return false;
+        }
+
+        // Validate volume name format
+        const nameRegex = /^[a-zA-Z0-9][a-zA-Z0-9_.-]+$/;
+        if (!nameRegex.test(data.name)) {
+            showNotification('Invalid volume name format. Use alphanumeric characters, dots, and dashes.', 'error');
+            return false;
+        }
+
+        return true;
+    }
+
+    // Event Handlers for Volume Operations
+    function setupVolumeOperationHandlers() {
+        // Create Volume Modal
+        $('#createVolumeBtn').click(() => {
+            resetCreateVolumeForm();
+            $('#createVolumeModal').removeClass('hidden');
+        });
+
+        $('#closeCreateVolumeModal').click(() => {
+            $('#createVolumeModal').addClass('hidden');
+        });
+
+        // Driver Selection Change
+        $('#volumeDriver').change(function() {
+            const isCustom = $(this).val() === 'custom';
+            $('#customDriverInput').toggleClass('hidden', !isCustom);
+            $('#customDriverName').prop('required', isCustom);
+        });
+
+        // Add Driver Option Button
+        $('#addDriverOptionBtn').click(addDriverOptionRow);
+
+        // Add Label Button
+        $('#addLabelBtn').click(addLabelRow);
+
+        // Remove Row Handlers
+        $(document).on('click', '.remove-driver-option', function() {
+            $(this).closest('.driver-option-row').remove();
+        });
+
+        $(document).on('click', '.remove-label', function() {
+            $(this).closest('.label-row').remove();
+        });
+
+        // Create Volume Form Submit
+        $('#createVolumeForm').submit(async function(e) {
+            e.preventDefault();
+            
+            try {
+                const volumeData = {
+                    name: $('#volumeName').val(),
+                    driver: $('#volumeDriver').val(),
+                    customDriver: $('#customDriverName').val(),
+                    driverOptions: getDriverOptions(),
+                    labels: getLabels()
+                };
+
+                if (!validateVolumeData(volumeData)) {
+                    return;
+                }
+
+                await createVolume(volumeData);
+                $('#createVolumeModal').addClass('hidden');
+
+            } catch (error) {
+                handleError(error, 'create_volume_submit');
+            }
+        });
+    }
+
+     // Pagination Implementation
+     function updatePagination() {
+        const totalItems = filteredVolumes.length;
+        const totalPages = Math.ceil(totalItems / pageSize);
+        currentPage = Math.min(currentPage, totalPages);
+
+        const start = (currentPage - 1) * pageSize + 1;
+        const end = Math.min(currentPage * pageSize, totalItems);
+
+        // Update pagination info
+        $('#showingFrom').text(start);
+        $('#showingTo').text(end);
+        $('#totalItems').text(totalItems);
+
+        // Generate page numbers
+        const pageNumbers = $('#pageNumbers').empty();
+        
+        for (let i = 1; i <= totalPages; i++) {
+            if (
+                i === 1 || 
+                i === totalPages || 
+                (i >= currentPage - 2 && i <= currentPage + 2)
+            ) {
+                const btn = $('<button>')
+                    .addClass('px-3 py-2 border border-gray-300 rounded-md text-sm font-medium')
+                    .addClass(i === currentPage ? 'bg-blue-50 text-blue-600' : 'text-gray-700 hover:bg-gray-50')
+                    .text(i)
+                    .click(() => goToPage(i));
+                pageNumbers.append(btn);
+            } else if (
+                i === currentPage - 3 || 
+                i === currentPage + 3
+            ) {
+                pageNumbers.append('<span class="px-2">...</span>');
+            }
+        }
+
+        // Update navigation buttons
+        $('#prevPage').prop('disabled', currentPage === 1)
+            .toggleClass('opacity-50', currentPage === 1);
+        $('#nextPage').prop('disabled', currentPage === totalPages)
+            .toggleClass('opacity-50', currentPage === totalPages);
+    }
+
+    function displayCurrentPage() {
+        const start = (currentPage - 1) * pageSize;
+        const pageVolumes = filteredVolumes.slice(start, start + pageSize);
+        
+        const volumesList = $('#volumesList').empty();
+        
+        pageVolumes.forEach(volume => {
+            const status = getVolumeStatus(volume);
+            const row = `
+                <tr class="hover:bg-gray-50 volume-row" data-name="${volume.Name}">
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <div class="text-sm font-medium text-gray-900">${volume.Name}</div>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <div class="text-sm text-gray-500">${volume.Driver}</div>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <div class="text-sm text-gray-500 truncate max-w-xs" title="${volume.Mountpoint}">
+                            ${volume.Mountpoint}
+                        </div>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <div class="text-sm text-gray-500">
+                            ${formatBytes(volume.UsageData.Size || 0)}
+                        </div>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <div class="text-sm text-gray-500">
+                            ${formatTimestamp(volume.CreatedAt)}
+                        </div>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${status.class}">
+                            ${status.text}
+                        </span>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-2">
+                        <button class="volume-action text-blue-600 hover:text-blue-900" 
+                                onclick="window.location.href='volume-detail.html?name=${encodeURIComponent(volume.Name)}'"
+                                title="View Details">
+                            <i class="fas fa-info-circle"></i>
+                        </button>
+                        ${volume.UsageData.RefCount === 0 ? `
+                            <button class="volume-action text-red-600 hover:text-red-900" 
+                                    onclick="showRemoveConfirmation('${volume.Name}')"
+                                    title="Remove Volume">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        ` : ''}
+                    </td>
+                </tr>
+            `;
+            volumesList.append(row);
+        });
+    }
+
+    function goToPage(page) {
+        currentPage = page;
+        displayCurrentPage();
+        updatePagination();
+    }
+
+  
+    
+// Enhanced Prune Volumes Implementation
+function setupPruneVolumesHandlers() {
+    $('#pruneVolumesBtn').click(async () => {
+        try {
+            // Show loading state
+            $('#pruneVolumesBtn').prop('disabled', true).html(`
+                <i class="fas fa-spinner fa-spin mr-2"></i>Calculating...
+            `);
+
+            // Get dry run information
+            const pruneInfo = await calculatePruneImpact();
+            
+            if (pruneInfo.volumeCount === 0) {
+                showNotification('No unused volumes to prune', 'info');
+                return;
+            }
+
+            // Update prune modal with details
+            $('#volumesToRemove').html(`
+                <span class="text-lg font-semibold text-red-600">${pruneInfo.volumeCount}</span>
+                <div class="mt-2 text-sm text-gray-600">
+                    <ul class="list-disc list-inside">
+                        ${pruneInfo.volumes.map(vol => `
+                            <li class="truncate" title="${vol.Name}">${vol.Name}</li>
+                        `).join('')}
+                    </ul>
+                </div>
+            `);
+            
+            $('#spaceToFree').html(`
+                <span class="text-lg font-semibold text-blue-600">${formatBytes(pruneInfo.spaceToFree)}</span>
+                <div class="mt-2 text-sm text-gray-500">Estimated space to be reclaimed</div>
+            `);
+
+            // Show the modal
+            $('#pruneModal').removeClass('hidden');
+
+        } catch (error) {
+            handleError(error, 'prune_volumes_check');
+            showNotification('Failed to calculate prune impact', 'error');
+        } finally {
+            // Reset button state
+            $('#pruneVolumesBtn').prop('disabled', false).html(`
+                <i class="fas fa-broom mr-2"></i>Prune Volumes
+            `);
+        }
+    });
+
+    // Handle prune confirmation
+    $('#confirmPrune').click(async () => {
+        try {
+            // Show loading state
+            $('#confirmPrune')
+                .prop('disabled', true)
+                .html('<i class="fas fa-spinner fa-spin mr-2"></i>Pruning...');
+            $('#cancelPrune').prop('disabled', true);
+
+            // Start prune operation
+            const result = await pruneVolumes();
+            
+            // Close modal
+            $('#pruneModal').addClass('hidden');
+
+            // Show success message
+            const deletedCount = result.VolumesDeleted?.length || 0;
+            const spaceReclaimed = formatBytes(result.SpaceReclaimed || 0);
+            
+            if (deletedCount > 0) {
+                showNotification(
+                    `Successfully pruned ${deletedCount} volumes. Space reclaimed: ${spaceReclaimed}`,
+                    'success'
+                );
+                
+                // Refresh volumes list
+                await fetchVolumes();
+            } else {
+                showNotification('No volumes were pruned', 'info');
+            }
+
+        } catch (error) {
+            handleError(error, 'prune_volumes');
+            showNotification('Failed to prune volumes: ' + (error.responseJSON?.message || error.message), 'error');
+        } finally {
+            // Reset button states
+            $('#confirmPrune')
+                .prop('disabled', false)
+                .html('Prune Volumes');
+            $('#cancelPrune').prop('disabled', false);
+        }
+    });
+
+    // Handle cancel button
+    $('#cancelPrune').click(() => {
+        $('#pruneModal').addClass('hidden');
+    });
+}
+
+// Calculate prune impact
+async function calculatePruneImpact() {
+    // Get list of unused volumes
+    const unusedVolumes = volumesData.filter(vol => {
+        // Check if volume is unused
+        const isUnused = !vol.UsageData?.RefCount || vol.UsageData.RefCount === 0;
+        // Check if volume is not a named volume (optional)
+        const isDangling = !vol.Labels || Object.keys(vol.Labels).length === 0;
+        return isUnused && isDangling;
+    });
+
+    // Calculate total space
+    const spaceToFree = unusedVolumes.reduce((total, vol) => {
+        return total + (vol.UsageData?.Size || 0);
+    }, 0);
+
+    return {
+        volumeCount: unusedVolumes.length,
+        spaceToFree: spaceToFree,
+        volumes: unusedVolumes
+    };
+}
+
+// Prune volumes
+async function pruneVolumes() {
+    try {
+        const response = await $.ajax({
+            url: `${API_BASE_URL}/volumes/prune`,
+            method: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify({
+                filters: {
+                    // You can add specific filters here if needed
+                    // dangling: ["true"]
+                }
+            })
+        });
+
+        // Return prune operation results
+        return {
+            VolumesDeleted: response.VolumesDeleted || [],
+            SpaceReclaimed: response.SpaceReclaimed || 0
+        };
+
+    } catch (error) {
+        console.error('Error pruning volumes:', error);
+        throw error;
+    }
+}
+
+// Enhanced Volume Usage Check
+async function getVolumeUsage(volumeName) {
+    try {
+        const containers = await $.get(`${API_BASE_URL}/containers/json?all=true`);
+        const usingContainers = containers.filter(container => {
+            return container.Mounts.some(mount => 
+                mount.Type === 'volume' && mount.Name === volumeName
+            );
+        });
+
+        return usingContainers.map(container => ({
+            id: container.Id.slice(0, 12),
+            name: container.Names[0].replace('/', ''),
+            state: container.State,
+            mountPoint: container.Mounts.find(m => m.Name === volumeName)?.Destination
+        }));
+    } catch (error) {
+        console.error('Error checking volume usage:', error);
+        throw error;
+    }
+}
+
+// Update modal content
+function updatePruneModalContent(pruneInfo) {
+    const { volumeCount, spaceToFree, volumes } = pruneInfo;
+
+    // Update volumes list with detailed information
+    const volumesHtml = volumes.map(volume => `
+        <div class="flex items-center justify-between py-2 border-b border-gray-200">
+            <div class="flex-1">
+                <p class="text-sm font-medium text-gray-900">${volume.Name}</p>
+                <p class="text-xs text-gray-500">Driver: ${volume.Driver}</p>
+            </div>
+            <div class="text-right">
+                <p class="text-sm text-gray-600">${formatBytes(volume.UsageData?.Size || 0)}</p>
+            </div>
+        </div>
+    `).join('');
+
+    // Update modal content
+    $('#volumesToRemove').html(`
+        <p class="text-lg font-semibold text-gray-900">Volumes to be removed: 
+            <span class="text-red-600">${volumeCount}</span>
+        </p>
+        <div class="mt-4 max-h-60 overflow-y-auto">
+            ${volumesHtml}
+        </div>
+    `);
+
+    $('#spaceToFree').html(`
+        <p class="text-lg font-semibold text-gray-900">Space to be reclaimed: 
+            <span class="text-blue-600">${formatBytes(spaceToFree)}</span>
+        </p>
+    `);
+
+    // Update confirmation message
+    $('#pruneConfirmMessage').text(
+        `Are you sure you want to remove ${volumeCount} unused volume${volumeCount !== 1 ? 's' : ''}? ` +
+        `This will free up ${formatBytes(spaceToFree)} of space.`
+    );
+}
+
+    // Keyboard Shortcuts
+    function setupKeyboardShortcuts() {
+        $(document).keydown(function(e) {
+            // Only handle shortcuts when not in input fields
+            if ($(e.target).is('input, textarea')) return;
+
+            if (e.ctrlKey) {
+                switch(e.key.toLowerCase()) {
+                    case 'n': // Create new volume
+                        e.preventDefault();
+                        $('#createVolumeBtn').click();
+                        break;
+                        
+                    case 'r': // Refresh
+                        e.preventDefault();
+                        $('#refreshBtn').click();
+                        break;
+                        
+                    case 'f': // Focus search
+                        e.preventDefault();
+                        $('#volumeSearch').focus();
+                        break;
+
+                    case 'q': // Quick actions
+                        e.preventDefault();
+                        $('#quickActionsMenu').toggleClass('hidden');
+                        break;
+                }
+            }
+
+            // Escape key handling
+            if (e.key === 'Escape') {
+                $('.modal').addClass('hidden');
+                $('#quickActionsMenu').addClass('hidden');
+            }
+        });
+
+        // Show keyboard shortcuts guide
+        $('#showShortcuts').click(() => {
+            $('#keyboardShortcutsGuide').removeClass('hidden');
+        });
+
+        $('#closeShortcutsGuide').click(() => {
+            $('#keyboardShortcutsGuide').addClass('hidden');
+        });
+    }
+
+    // Quick Actions Menu
+    function setupQuickActions() {
+        const quickActionsBtn = $('#toggleQuickActions');
+        const quickActionsMenu = $('#quickActionsMenu');
+
+        quickActionsBtn.click(() => {
+            quickActionsMenu.toggleClass('hidden');
+        });
+
+        // Hide menu when clicking outside
+        $(document).click(function(e) {
+            if (!quickActionsBtn.is(e.target) && 
+                !quickActionsMenu.is(e.target) && 
+                quickActionsMenu.has(e.target).length === 0) {
+                quickActionsMenu.addClass('hidden');
+            }
+        });
+    }
+
+    // Filter and Search Handlers
+    function setupFilterHandlers() {
+        // Search input with debounce
+        let searchTimeout;
+        $('#volumeSearch').on('input', function() {
+            clearTimeout(searchTimeout);
+            searchTimeout = setTimeout(() => {
+                applyFiltersAndSort();
+            }, 300);
+        });
+
+        // Filter and sort changes
+        $('#volumeFilter, #volumeSort').change(() => {
+            applyFiltersAndSort();
+        });
+
+        // Page size change
+        $('#pageSize').change(function() {
+            pageSize = parseInt($(this).val());
+            currentPage = 1;
+            applyFiltersAndSort();
+        });
+
+        // Pagination navigation
+        $('#prevPage').click(() => {
+            if (currentPage > 1) {
+                goToPage(currentPage - 1);
+            }
+        });
+
+        $('#nextPage').click(() => {
+            const totalPages = Math.ceil(filteredVolumes.length / pageSize);
+            if (currentPage < totalPages) {
+                goToPage(currentPage + 1);
+            }
+        });
+    }
+
+    // Volume Row Context Menu
+    function setupContextMenu() {
+        const contextMenu = $('#volumeContextMenu');
+
+        $(document).on('contextmenu', '.volume-row', function(e) {
+            e.preventDefault();
+            const volumeName = $(this).data('name');
+            const volume = volumesData.find(v => v.Name === volumeName);
+            
+            // Position menu
+            contextMenu
+                .css({
+                    top: e.pageY + 'px',
+                    left: e.pageX + 'px'
+                })
+                .removeClass('hidden')
+                .data('volume-name', volumeName);
+
+            // Disable/enable menu items based on volume status
+            contextMenu.find('[data-action="remove"]')
+                .prop('disabled', volume.UsageData.RefCount > 0)
+                .toggleClass('opacity-50', volume.UsageData.RefCount > 0);
+        });
+
+        // Hide context menu when clicking outside
+        $(document).click(() => {
+            contextMenu.addClass('hidden');
+        });
+
+        // Context menu actions
+        contextMenu.on('click', '[data-action]', function() {
+            const action = $(this).data('action');
+            const volumeName = contextMenu.data('volume-name');
+
+            switch(action) {
+                case 'remove':
+                    showRemoveConfirmation(volumeName);
+                    break;
+                case 'details':
+                    window.location.href = `volume-detail.html?name=${encodeURIComponent(volumeName)}`;
+                    break;
+            }
+
+            contextMenu.addClass('hidden');
+        });
+    }
+
+    // Volume Remove Confirmation Implementation
+async function showRemoveConfirmation(volumeName) {
+    try {
+        // Get volume details and usage information
+        const volume = volumesData.find(v => v.Name === volumeName);
+        const usage = await getVolumeUsage(volumeName);
+
+        // Update modal content
+        $('#removeVolumeName').text(volumeName);
+        
+        // Check if volume is in use
+        if (usage.length > 0) {
+            $('#volumeUsageWarning').removeClass('hidden');
+            const containerList = $('#volumeUsageList').empty();
+            
+            usage.forEach(container => {
+                containerList.append(`
+                    <li class="text-sm">
+                        ${container.name} (${container.id})
+                        <span class="ml-2 px-2 py-0.5 rounded-full text-xs ${
+                            container.state === 'running' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
+                        }">
+                            ${container.state}
+                        </span>
+                    </li>
+                `);
+            });
+
+            // Disable remove button if volume is in use
+            $('#confirmRemoveVolume').prop('disabled', true);
+            $('#confirmRemoveCheckbox').prop('disabled', true);
+        } else {
+            $('#volumeUsageWarning').addClass('hidden');
+            $('#confirmRemoveVolume').prop('disabled', false);
+            $('#confirmRemoveCheckbox').prop('disabled', false);
+        }
+
+        // Add volume details if available
+        if (volume) {
+            const volumeDetails = `
+                <div class="mt-4 bg-gray-50 p-3 rounded-lg">
+                    <p class="text-sm font-medium text-gray-700">Volume Details:</p>
+                    <p class="text-sm text-gray-600 mt-1">Driver: ${volume.Driver}</p>
+                    <p class="text-sm text-gray-600">Size: ${formatBytes(volume.UsageData?.Size || 0)}</p>
+                    ${volume.Labels && Object.keys(volume.Labels).length > 0 ? `
+                        <p class="text-sm text-gray-600 mt-1">Labels:</p>
+                        <ul class="text-sm text-gray-600 list-disc list-inside ml-2">
+                            ${Object.entries(volume.Labels).map(([key, value]) => 
+                                `<li>${key}: ${value}</li>`
+                            ).join('')}
+                        </ul>
+                    ` : ''}
+                </div>
+            `;
+            $('#volumeDetails').html(volumeDetails);
+        }
+
+        // Reset checkbox and button states
+        $('#confirmRemoveCheckbox').prop('checked', false);
+        updateRemoveButton();
+
+        // Show the modal
+        $('#removeVolumeConfirmModal').removeClass('hidden');
+
+    } catch (error) {
+        console.error('Error showing remove confirmation:', error);
+        showNotification('Failed to check volume usage', 'error');
+    }
+}
+
+// Helper function to update remove button state
+function updateRemoveButton() {
+    const isChecked = $('#confirmRemoveCheckbox').is(':checked');
+    const isInUse = !$('#volumeUsageWarning').hasClass('hidden');
+    
+    $('#confirmRemoveVolume')
+        .prop('disabled', !isChecked || isInUse)
+        .toggleClass('opacity-50', !isChecked || isInUse);
+}
+
+// Setup remove volume handlers
+function setupRemoveVolumeHandlers() {
+    // Confirmation checkbox handler
+    $('#confirmRemoveCheckbox').change(function() {
+        updateRemoveButton();
+    });
+
+    // Cancel button handler
+    $('#cancelRemoveVolume').click(() => {
+        $('#removeVolumeConfirmModal').addClass('hidden');
+    });
+
+    // Confirm remove button handler
+    $('#confirmRemoveVolume').click(async function() {
+        const volumeName = $('#removeVolumeName').text();
+        
+        try {
+            // Show loading state
+            $(this).prop('disabled', true)
+                .html('<i class="fas fa-spinner fa-spin mr-2"></i>Removing...');
+            $('#cancelRemoveVolume').prop('disabled', true);
+
+            // Try to remove the volume
+            await removeVolume(volumeName);
+            
+            // Close modal and show success message
+            $('#removeVolumeConfirmModal').addClass('hidden');
+            showNotification(`Volume "${volumeName}" removed successfully`, 'success');
+            
+            // Refresh volumes list
+            await fetchVolumes();
+
+        } catch (error) {
+            console.error('Error removing volume:', error);
+            showNotification(
+                `Failed to remove volume: ${error.responseJSON?.message || error.message}`,
+                'error'
+            );
+        } finally {
+            // Reset button states
+            $(this).prop('disabled', false)
+                .html('Remove Volume');
+            $('#cancelRemoveVolume').prop('disabled', false);
+        }
+    });
+
+    // Force remove option (if needed)
+    $('#forceRemoveOption').change(function() {
+        const isForceRemove = $(this).is(':checked');
+        if (isForceRemove) {
+            showNotification(
+                'Warning: Force remove can lead to data loss if the volume is still in use',
+                'warning',
+                8000
+            );
+        }
+    });
+}
+
+    // Initialize all handlers
+    function initializeHandlers() {
+
+        setupRemoveVolumeHandlers();
+        setupPruneVolumesHandlers();
+        setupKeyboardShortcuts();
+        setupQuickActions();
+        setupFilterHandlers();
+        setupContextMenu();
+
+        // Make the function globally available
+    window.showRemoveConfirmation = showRemoveConfirmation;
+    }
+
+   
+
+ // Initialize the dashboard
+ initialize();
+
+  // Start initialization
+  initializeHandlers();
+    // Initialize Volume Operations
+    setupVolumeOperationHandlers();
+
+   
+});
+
+
+// Pagination, UI Interactions, and Advanced Features
+$(document).ready(function() {
+   
+});
+
+</script>
+
+</body>
+</html>

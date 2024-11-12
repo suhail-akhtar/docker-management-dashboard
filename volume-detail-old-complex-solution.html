@@ -1,0 +1,2346 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Docker Volume Details</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/js/all.min.js"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css" rel="stylesheet">
+    <style>
+        .status-badge {
+            transition: all 0.3s ease;
+        }
+        .metric-card:hover {
+            transform: translateY(-2px);
+            transition: transform 0.3s ease;
+        }
+        .detail-section {
+            transition: all 0.3s ease;
+        }
+    </style>
+</head>
+<body class="bg-gray-100">
+    <!-- Section 1: Navigation and Header -->
+    <div class="min-h-screen">
+        <!-- Top Navigation Bar -->
+        <nav class="bg-white shadow-lg">
+            <div class="max-w-7xl mx-auto px-4">
+                <div class="flex justify-between items-center py-4">
+                    <div class="flex items-center">
+                        <a href="volumes.html" class="text-gray-500 hover:text-gray-700 mr-4">
+                            <i class="fas fa-arrow-left"></i>
+                            <span class="ml-2">Back to Volumes</span>
+                        </a>
+                        <i class="fas fa-database text-2xl text-blue-500 mr-2"></i>
+                        <div class="flex flex-col">
+                            <span class="text-xl font-semibold text-gray-800">Volume Details</span>
+                            <span id="volumeName" class="text-sm text-gray-500"></span>
+                        </div>
+                    </div>
+                    <div class="flex items-center space-x-4">
+                        <!-- Action Buttons -->
+                        <button id="refreshBtn" class="bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600 transition-colors">
+                            <i class="fas fa-sync-alt mr-2"></i>Refresh
+                        </button>
+                        <div class="relative" id="actionDropdown">
+                            <button class="bg-gray-500 text-white px-4 py-2 rounded-md hover:bg-gray-600 transition-colors">
+                                <i class="fas fa-ellipsis-v mr-2"></i>Actions
+                            </button>
+                            <!-- Dropdown Menu -->
+                            <div class="hidden absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-10">
+                                <a href="#" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+                                    <i class="fas fa-clone mr-2"></i>Clone Volume
+                                </a>
+                                <a href="#" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+                                    <i class="fas fa-file-export mr-2"></i>Export Data
+                                </a>
+                                <hr class="my-1">
+                                <a href="#" class="block px-4 py-2 text-sm text-red-600 hover:bg-red-50">
+                                    <i class="fas fa-trash mr-2"></i>Remove Volume
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </nav>
+
+        <!-- Main Content Area -->
+        <div class="max-w-7xl mx-auto px-4 py-8">
+            <!-- Section 2: Volume Overview and Quick Stats -->
+            <div class="grid grid-cols-1 lg:grid-cols-4 gap-6 mb-8">
+                <!-- Volume Status Card -->
+                <div class="bg-white rounded-lg shadow-md p-6 metric-card">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="text-lg font-semibold text-gray-700">Status</h3>
+                        <span id="volumeStatus" class="px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800">
+                            Active
+                        </span>
+                    </div>
+                    <div class="space-y-3">
+                        <div class="flex justify-between items-center">
+                            <span class="text-gray-600">Health</span>
+                            <span class="text-green-600"><i class="fas fa-check-circle"></i> Healthy</span>
+                        </div>
+                        <div class="flex justify-between items-center">
+                            <span class="text-gray-600">Mounted</span>
+                            <span class="text-blue-600" id="mountStatus">Yes</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Volume Size Card -->
+                <div class="bg-white rounded-lg shadow-md p-6 metric-card">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="text-lg font-semibold text-gray-700">Storage</h3>
+                        <i class="fas fa-hdd text-blue-500"></i>
+                    </div>
+                    <div class="space-y-3">
+                        <div class="flex justify-between items-center">
+                            <span class="text-gray-600">Total Size</span>
+                            <span class="text-gray-800 font-medium" id="totalSize">Loading...</span>
+                        </div>
+                        <div class="flex justify-between items-center">
+                            <span class="text-gray-600">Used Space</span>
+                            <span class="text-gray-800 font-medium" id="usedSpace">Loading...</span>
+                        </div>
+                        <div class="w-full bg-gray-200 rounded-full h-2.5">
+                            <div class="bg-blue-500 h-2.5 rounded-full" style="width: 45%"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Connected Containers Card -->
+                <div class="bg-white rounded-lg shadow-md p-6 metric-card">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="text-lg font-semibold text-gray-700">Usage</h3>
+                        <i class="fas fa-cubes text-purple-500"></i>
+                    </div>
+                    <div class="space-y-3">
+                        <div class="flex justify-between items-center">
+                            <span class="text-gray-600">Connected Containers</span>
+                            <span class="text-gray-800 font-medium" id="containerCount">0</span>
+                        </div>
+                        <div class="flex justify-between items-center">
+                            <span class="text-gray-600">Mount Points</span>
+                            <span class="text-gray-800 font-medium" id="mountPoints">0</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Performance Card -->
+                <div class="bg-white rounded-lg shadow-md p-6 metric-card">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="text-lg font-semibold text-gray-700">Performance</h3>
+                        <i class="fas fa-tachometer-alt text-yellow-500"></i>
+                    </div>
+                    <div class="space-y-3">
+                        <div class="flex justify-between items-center">
+                            <span class="text-gray-600">Read Speed</span>
+                            <span class="text-gray-800 font-medium" id="readSpeed">0 MB/s</span>
+                        </div>
+                        <div class="flex justify-between items-center">
+                            <span class="text-gray-600">Write Speed</span>
+                            <span class="text-gray-800 font-medium" id="writeSpeed">0 MB/s</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Detailed Information Section -->
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <!-- Volume Information -->
+                <div class="lg:col-span-2">
+                    <div class="bg-white rounded-lg shadow-md p-6">
+                        <h3 class="text-lg font-semibold text-gray-700 mb-4">Volume Information</h3>
+                        <div class="space-y-4">
+                            <!-- Basic Information -->
+                            <div class="grid grid-cols-2 gap-4">
+                                <div class="space-y-2">
+                                    <p class="text-sm text-gray-500">Name</p>
+                                    <p class="font-medium text-gray-800" id="volumeDetailName">Loading...</p>
+                                </div>
+                                <div class="space-y-2">
+                                    <p class="text-sm text-gray-500">Driver</p>
+                                    <p class="font-medium text-gray-800" id="volumeDriver">Loading...</p>
+                                </div>
+                                <div class="space-y-2">
+                                    <p class="text-sm text-gray-500">Created</p>
+                                    <p class="font-medium text-gray-800" id="volumeCreated">Loading...</p>
+                                </div>
+                                <div class="space-y-2">
+                                    <p class="text-sm text-gray-500">Scope</p>
+                                    <p class="font-medium text-gray-800" id="volumeScope">Loading...</p>
+                                </div>
+                            </div>
+
+                            <!-- Mount Point -->
+                            <div class="space-y-2">
+                                <p class="text-sm text-gray-500">Mount Point</p>
+                                <div class="flex items-center bg-gray-50 p-2 rounded-md">
+                                    <code class="text-sm text-gray-800 flex-1" id="volumeMountPoint">Loading...</code>
+                                    <button class="text-blue-500 hover:text-blue-700 ml-2" title="Copy to clipboard">
+                                        <i class="fas fa-copy"></i>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Labels -->
+                            <div class="space-y-2">
+                                <p class="text-sm text-gray-500">Labels</p>
+                                <div class="flex flex-wrap gap-2" id="volumeLabels">
+                                    <span class="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm">
+                                        Loading...
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Quick Actions Panel -->
+                <div class="lg:col-span-1">
+                    <div class="bg-white rounded-lg shadow-md p-6">
+                        <h3 class="text-lg font-semibold text-gray-700 mb-4">Quick Actions</h3>
+                        <div class="space-y-3">
+                            <button class="w-full flex items-center justify-between px-4 py-2 bg-blue-50 text-blue-700 rounded-md hover:bg-blue-100 transition-colors">
+                                <span><i class="fas fa-terminal mr-2"></i>Access Console</span>
+                                <i class="fas fa-chevron-right"></i>
+                            </button>
+                            <button class="w-full flex items-center justify-between px-4 py-2 bg-purple-50 text-purple-700 rounded-md hover:bg-purple-100 transition-colors">
+                                <span><i class="fas fa-search mr-2"></i>Inspect Volume</span>
+                                <i class="fas fa-chevron-right"></i>
+                            </button>
+                            <button class="w-full flex items-center justify-between px-4 py-2 bg-green-50 text-green-700 rounded-md hover:bg-green-100 transition-colors">
+                                <span><i class="fas fa-clone mr-2"></i>Create Backup</span>
+                                <i class="fas fa-chevron-right"></i>
+                            </button>
+                            <hr class="my-3">
+                            <button class="w-full flex items-center justify-between px-4 py-2 bg-red-50 text-red-700 rounded-md hover:bg-red-100 transition-colors">
+                                <span><i class="fas fa-trash mr-2"></i>Remove Volume</span>
+                                <i class="fas fa-chevron-right"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div id="loadingOverlay" class="hidden fixed inset-0 bg-gray-900 bg-opacity-50 flex items-center justify-center z-50">
+        <div class="bg-white p-6 rounded-lg shadow-xl">
+            <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto"></div>
+            <p class="mt-4 text-gray-700">Loading volume details...</p>
+        </div>
+    </div>
+
+    <!-- Notification Container -->
+    <div id="notificationContainer" class="fixed top-4 right-4 z-50">
+        <!-- Notifications will be inserted here -->
+    </div>
+
+
+
+<!-- Container and Usage Information Section -->
+<div class="max-w-7xl mx-auto px-4 py-8">
+    <!-- Connected Containers Section -->
+    <div class="bg-white rounded-lg shadow-md mb-8">
+        <div class="px-6 py-4 border-b border-gray-200">
+            <div class="flex justify-between items-center">
+                <h2 class="text-lg font-semibold text-gray-800">Connected Containers</h2>
+                <div class="flex items-center space-x-4">
+                    <button id="expandAllContainers" class="text-blue-600 hover:text-blue-800">
+                        <i class="fas fa-expand-alt mr-1"></i>Expand All
+                    </button>
+                    <div class="relative">
+                        <input type="text" id="containerSearch" placeholder="Search containers..."
+                            class="pl-8 pr-4 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500">
+                        <i class="fas fa-search absolute left-3 top-3 text-gray-400"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Containers List -->
+        <div class="p-6">
+            <div class="space-y-4" id="containersList">
+                <!-- Container Cards will be dynamically inserted here -->
+                <!-- Example Container Card -->
+                <div class="border border-gray-200 rounded-lg hover:shadow-md transition-shadow">
+                    <div class="p-4 flex items-center justify-between cursor-pointer container-header">
+                        <div class="flex items-center space-x-4">
+                            <span class="inline-flex items-center justify-center p-2 bg-green-100 rounded-lg">
+                                <i class="fas fa-cube text-green-600"></i>
+                            </span>
+                            <div>
+                                <h3 class="text-lg font-medium text-gray-900">nginx-web-server</h3>
+                                <p class="text-sm text-gray-500">ID: abc123...</p>
+                            </div>
+                            <span class="px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800">
+                                Running
+                            </span>
+                        </div>
+                        <button class="text-gray-400 hover:text-gray-600">
+                            <i class="fas fa-chevron-down"></i>
+                        </button>
+                    </div>
+                    
+                    <!-- Container Details (Expandable) -->
+                    <div class="hidden border-t border-gray-200 p-4 bg-gray-50 container-details">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div class="space-y-2">
+                                <p class="text-sm text-gray-600">Mount Point</p>
+                                <code class="block p-2 bg-gray-100 rounded text-sm">/var/lib/nginx/data</code>
+                            </div>
+                            <div class="space-y-2">
+                                <p class="text-sm text-gray-600">Access Mode</p>
+                                <p class="font-medium">read-write</p>
+                            </div>
+                            <div class="space-y-2">
+                                <p class="text-sm text-gray-600">Mounted Since</p>
+                                <p class="font-medium">2 hours ago</p>
+                            </div>
+                            <div class="space-y-2">
+                                <p class="text-sm text-gray-600">I/O Activity</p>
+                                <div class="flex items-center space-x-2">
+                                    <i class="fas fa-arrow-up text-green-500"></i>
+                                    <span>2.1 MB/s</span>
+                                    <i class="fas fa-arrow-down text-blue-500 ml-4"></i>
+                                    <span>1.5 MB/s</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Usage Statistics Section -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <!-- Access Patterns -->
+        <div class="bg-white rounded-lg shadow-md">
+            <div class="px-6 py-4 border-b border-gray-200">
+                <h2 class="text-lg font-semibold text-gray-800">Access Patterns</h2>
+            </div>
+            <div class="p-6">
+                <!-- Read/Write Activity Chart -->
+                <div class="h-64 mb-6">
+                    <canvas id="accessPatternChart"></canvas>
+                </div>
+                
+                <!-- Activity Metrics -->
+                <div class="grid grid-cols-2 gap-4">
+                    <div class="bg-blue-50 rounded-lg p-4">
+                        <h4 class="text-sm font-medium text-blue-800 mb-2">Read Operations</h4>
+                        <div class="flex justify-between items-center">
+                            <span class="text-2xl font-bold text-blue-600" id="readOps">458</span>
+                            <span class="text-sm text-blue-600">
+                                <i class="fas fa-arrow-up"></i> 12%
+                            </span>
+                        </div>
+                    </div>
+                    <div class="bg-green-50 rounded-lg p-4">
+                        <h4 class="text-sm font-medium text-green-800 mb-2">Write Operations</h4>
+                        <div class="flex justify-between items-center">
+                            <span class="text-2xl font-bold text-green-600" id="writeOps">284</span>
+                            <span class="text-sm text-green-600">
+                                <i class="fas fa-arrow-down"></i> 8%
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Storage Utilization -->
+        <div class="bg-white rounded-lg shadow-md">
+            <div class="px-6 py-4 border-b border-gray-200">
+                <h2 class="text-lg font-semibold text-gray-800">Storage Utilization</h2>
+            </div>
+            <div class="p-6">
+                <!-- Storage Usage Chart -->
+                <div class="h-64 mb-6">
+                    <canvas id="storageUtilizationChart"></canvas>
+                </div>
+                
+                <!-- Storage Metrics -->
+                <div class="grid grid-cols-2 gap-4">
+                    <div class="bg-purple-50 rounded-lg p-4">
+                        <h4 class="text-sm font-medium text-purple-800 mb-2">Available Space</h4>
+                        <div class="flex justify-between items-center">
+                            <span class="text-2xl font-bold text-purple-600" id="availableSpace">2.4 GB</span>
+                            <span class="text-sm text-purple-600">
+                                <i class="fas fa-chart-pie"></i> 55%
+                            </span>
+                        </div>
+                    </div>
+                    <div class="bg-yellow-50 rounded-lg p-4">
+                        <h4 class="text-sm font-medium text-yellow-800 mb-2">Growth Rate</h4>
+                        <div class="flex justify-between items-center">
+                            <span class="text-2xl font-bold text-yellow-600" id="growthRate">+2.1 MB/day</span>
+                            <span class="text-sm text-yellow-600">
+                                <i class="fas fa-chart-line"></i>
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Access History Timeline -->
+    <div class="bg-white rounded-lg shadow-md mt-8">
+        <div class="px-6 py-4 border-b border-gray-200">
+            <div class="flex justify-between items-center">
+                <h2 class="text-lg font-semibold text-gray-800">Access History</h2>
+                <div class="flex items-center space-x-4">
+                    <select id="timelineFilter" class="border border-gray-300 rounded-md px-3 py-2 focus:ring-blue-500 focus:border-blue-500">
+                        <option value="24h">Last 24 Hours</option>
+                        <option value="7d">Last 7 Days</option>
+                        <option value="30d">Last 30 Days</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+        <div class="p-6">
+            <div class="space-y-4" id="accessTimeline">
+                <!-- Timeline entries will be dynamically inserted here -->
+                <!-- Example Timeline Entry -->
+                <div class="flex items-start space-x-4">
+                    <div class="flex-shrink-0 w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center">
+                        <i class="fas fa-plug text-blue-600"></i>
+                    </div>
+                    <div class="flex-grow">
+                        <div class="flex items-center justify-between">
+                            <h4 class="text-sm font-medium text-gray-900">Container Mounted</h4>
+                            <span class="text-sm text-gray-500">2 hours ago</span>
+                        </div>
+                        <p class="text-sm text-gray-600 mt-1">
+                            Container 'nginx-web-server' mounted the volume at /var/lib/nginx/data
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Volume Unmount Confirmation Modal -->
+<div id="unmountModal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
+    <div class="bg-white rounded-lg max-w-md w-full mx-4">
+        <div class="px-6 py-4 border-b border-gray-200">
+            <h3 class="text-lg font-medium text-gray-900">Unmount Container</h3>
+        </div>
+        <div class="px-6 py-4">
+            <p class="text-gray-700">Are you sure you want to unmount this volume from the container?</p>
+            <p class="text-sm text-gray-500 mt-2">This action might cause data access interruption.</p>
+        </div>
+        <div class="px-6 py-4 bg-gray-50 flex justify-end space-x-4">
+            <button class="px-4 py-2 text-gray-600 hover:text-gray-800" onclick="closeUnmountModal()">
+                Cancel
+            </button>
+            <button class="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700" onclick="confirmUnmount()">
+                Unmount
+            </button>
+        </div>
+    </div>
+</div>
+
+
+<!-- Performance Monitoring Section -->
+<div class="max-w-7xl mx-auto px-4 py-8">
+    <!-- Real-time Monitoring Header -->
+    <div class="flex justify-between items-center mb-6">
+        <h2 class="text-2xl font-bold text-gray-800">Performance Monitoring</h2>
+        <div class="flex items-center space-x-4">
+            <div class="flex items-center">
+                <span class="text-sm text-gray-500 mr-2">Auto-refresh:</span>
+                <select id="refreshInterval" class="border border-gray-300 rounded-md px-3 py-2 text-sm">
+                    <option value="5">5 seconds</option>
+                    <option value="10">10 seconds</option>
+                    <option value="30">30 seconds</option>
+                    <option value="60">1 minute</option>
+                </select>
+            </div>
+            <button id="pauseMonitoring" class="flex items-center px-4 py-2 text-sm text-gray-600 hover:text-gray-800">
+                <i class="fas fa-pause mr-2"></i>
+                Pause
+            </button>
+        </div>
+    </div>
+
+    <!-- Real-time Metrics Grid -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <!-- I/O Operations -->
+        <div class="bg-white rounded-lg shadow-md p-6">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-lg font-semibold text-gray-700">I/O Operations</h3>
+                <span class="text-xs text-gray-500">Updated: <span id="ioUpdateTime">Just now</span></span>
+            </div>
+            <div class="space-y-4">
+                <div>
+                    <div class="flex justify-between text-sm mb-1">
+                        <span class="text-gray-600">Read IOPS</span>
+                        <span class="text-green-600" id="readIops">245/s</span>
+                    </div>
+                    <div class="w-full bg-gray-200 rounded-full h-2">
+                        <div class="bg-green-500 h-2 rounded-full" style="width: 65%"></div>
+                    </div>
+                </div>
+                <div>
+                    <div class="flex justify-between text-sm mb-1">
+                        <span class="text-gray-600">Write IOPS</span>
+                        <span class="text-blue-600" id="writeIops">180/s</span>
+                    </div>
+                    <div class="w-full bg-gray-200 rounded-full h-2">
+                        <div class="bg-blue-500 h-2 rounded-full" style="width: 45%"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Throughput -->
+        <div class="bg-white rounded-lg shadow-md p-6">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-lg font-semibold text-gray-700">Throughput</h3>
+                <span class="text-xs text-gray-500">Updated: <span id="throughputUpdateTime">Just now</span></span>
+            </div>
+            <div class="space-y-4">
+                <div>
+                    <div class="flex justify-between text-sm mb-1">
+                        <span class="text-gray-600">Read Speed</span>
+                        <span class="text-green-600" id="readSpeed">24.5 MB/s</span>
+                    </div>
+                    <div class="w-full bg-gray-200 rounded-full h-2">
+                        <div class="bg-green-500 h-2 rounded-full" style="width: 70%"></div>
+                    </div>
+                </div>
+                <div>
+                    <div class="flex justify-between text-sm mb-1">
+                        <span class="text-gray-600">Write Speed</span>
+                        <span class="text-blue-600" id="writeSpeed">18.2 MB/s</span>
+                    </div>
+                    <div class="w-full bg-gray-200 rounded-full h-2">
+                        <div class="bg-blue-500 h-2 rounded-full" style="width: 55%"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Latency -->
+        <div class="bg-white rounded-lg shadow-md p-6">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-lg font-semibold text-gray-700">Latency</h3>
+                <span class="text-xs text-gray-500">Updated: <span id="latencyUpdateTime">Just now</span></span>
+            </div>
+            <div class="space-y-4">
+                <div>
+                    <div class="flex justify-between text-sm mb-1">
+                        <span class="text-gray-600">Read Latency</span>
+                        <span class="text-green-600" id="readLatency">0.8ms</span>
+                    </div>
+                    <div class="w-full bg-gray-200 rounded-full h-2">
+                        <div class="bg-green-500 h-2 rounded-full" style="width: 20%"></div>
+                    </div>
+                </div>
+                <div>
+                    <div class="flex justify-between text-sm mb-1">
+                        <span class="text-gray-600">Write Latency</span>
+                        <span class="text-blue-600" id="writeLatency">1.2ms</span>
+                    </div>
+                    <div class="w-full bg-gray-200 rounded-full h-2">
+                        <div class="bg-blue-500 h-2 rounded-full" style="width: 30%"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Queue Depth -->
+        <div class="bg-white rounded-lg shadow-md p-6">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-lg font-semibold text-gray-700">Queue Depth</h3>
+                <span class="text-xs text-gray-500">Updated: <span id="queueUpdateTime">Just now</span></span>
+            </div>
+            <div class="space-y-4">
+                <div>
+                    <div class="flex justify-between text-sm mb-1">
+                        <span class="text-gray-600">Read Queue</span>
+                        <span class="text-green-600" id="readQueue">4</span>
+                    </div>
+                    <div class="w-full bg-gray-200 rounded-full h-2">
+                        <div class="bg-green-500 h-2 rounded-full" style="width: 40%"></div>
+                    </div>
+                </div>
+                <div>
+                    <div class="flex justify-between text-sm mb-1">
+                        <span class="text-gray-600">Write Queue</span>
+                        <span class="text-blue-600" id="writeQueue">6</span>
+                    </div>
+                    <div class="w-full bg-gray-200 rounded-full h-2">
+                        <div class="bg-blue-500 h-2 rounded-full" style="width: 60%"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Real-time Performance Chart -->
+    <div class="bg-white rounded-lg shadow-md p-6 mb-8">
+        <div class="flex items-center justify-between mb-6">
+            <h3 class="text-lg font-semibold text-gray-700">Performance Trends</h3>
+            <div class="flex items-center space-x-4">
+                <div class="flex items-center space-x-2">
+                    <button class="px-3 py-1 text-sm rounded-md bg-blue-100 text-blue-700">1H</button>
+                    <button class="px-3 py-1 text-sm rounded-md hover:bg-gray-100">6H</button>
+                    <button class="px-3 py-1 text-sm rounded-md hover:bg-gray-100">24H</button>
+                </div>
+                <select class="border border-gray-300 rounded-md px-3 py-1 text-sm">
+                    <option value="iops">IOPS</option>
+                    <option value="throughput">Throughput</option>
+                    <option value="latency">Latency</option>
+                </select>
+            </div>
+        </div>
+        <div class="h-80">
+            <canvas id="performanceChart"></canvas>
+        </div>
+    </div>
+</div>
+
+<!-- Alert Badge Template (Hidden) -->
+<template id="alertBadgeTemplate">
+    <div class="alert-badge fixed top-4 right-4 bg-red-100 border-l-4 border-red-500 text-red-700 p-4 rounded shadow-md hidden">
+        <div class="flex items-center">
+            <div class="flex-shrink-0">
+                <i class="fas fa-exclamation-circle"></i>
+            </div>
+            <div class="ml-3">
+                <p class="text-sm alert-message">Alert message goes here</p>
+            </div>
+            <button class="ml-auto pl-3 text-red-500 hover:text-red-600 close-alert">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+    </div>
+</template>
+
+<!-- Health Monitoring & Diagnostics Section -->
+<div class="max-w-7xl mx-auto px-4 py-8">
+    <!-- Health Status Overview -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+        <!-- Overall Health Status -->
+        <div class="lg:col-span-2">
+            <div class="bg-white rounded-lg shadow-md p-6">
+                <div class="flex items-center justify-between mb-6">
+                    <h3 class="text-lg font-semibold text-gray-700">Health Status</h3>
+                    <div class="flex items-center">
+                        <span class="px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800">
+                            <i class="fas fa-check-circle mr-1"></i>Healthy
+                        </span>
+                        <button class="ml-4 text-blue-600 hover:text-blue-800">
+                            <i class="fas fa-sync-alt"></i>
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Health Metrics Grid -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <!-- Integrity Check -->
+                    <div class="bg-gray-50 rounded-lg p-4">
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="text-sm font-medium text-gray-600">Data Integrity</span>
+                            <i class="fas fa-shield-alt text-green-500"></i>
+                        </div>
+                        <div class="flex items-baseline">
+                            <span class="text-2xl font-bold text-gray-700">100%</span>
+                            <span class="ml-2 text-sm text-green-600">Verified</span>
+                        </div>
+                        <p class="text-xs text-gray-500 mt-1">Last checked: 5 mins ago</p>
+                    </div>
+
+                    <!-- Error Rate -->
+                    <div class="bg-gray-50 rounded-lg p-4">
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="text-sm font-medium text-gray-600">Error Rate</span>
+                            <i class="fas fa-exclamation-triangle text-yellow-500"></i>
+                        </div>
+                        <div class="flex items-baseline">
+                            <span class="text-2xl font-bold text-gray-700">0.02%</span>
+                            <span class="ml-2 text-sm text-yellow-600">Minor</span>
+                        </div>
+                        <p class="text-xs text-gray-500 mt-1">Last 24 hours</p>
+                    </div>
+
+                    <!-- Consistency Status -->
+                    <div class="bg-gray-50 rounded-lg p-4">
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="text-sm font-medium text-gray-600">Consistency</span>
+                            <i class="fas fa-check-double text-green-500"></i>
+                        </div>
+                        <div class="flex items-baseline">
+                            <span class="text-2xl font-bold text-gray-700">Stable</span>
+                            <span class="ml-2 text-sm text-green-600">Normal</span>
+                        </div>
+                        <p class="text-xs text-gray-500 mt-1">All checks passing</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Quick Diagnostics -->
+        <div class="bg-white rounded-lg shadow-md p-6">
+            <h3 class="text-lg font-semibold text-gray-700 mb-4">Quick Diagnostics</h3>
+            <div class="space-y-4">
+                <button class="w-full flex items-center justify-between p-3 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors">
+                    <div class="flex items-center">
+                        <i class="fas fa-microscope text-blue-600 mr-3"></i>
+                        <span class="text-blue-700">Run Health Check</span>
+                    </div>
+                    <i class="fas fa-chevron-right text-blue-600"></i>
+                </button>
+                
+                <button class="w-full flex items-center justify-between p-3 bg-purple-50 rounded-lg hover:bg-purple-100 transition-colors">
+                    <div class="flex items-center">
+                        <i class="fas fa-magic text-purple-600 mr-3"></i>
+                        <span class="text-purple-700">Optimize Performance</span>
+                    </div>
+                    <i class="fas fa-chevron-right text-purple-600"></i>
+                </button>
+                
+                <button class="w-full flex items-center justify-between p-3 bg-green-50 rounded-lg hover:bg-green-100 transition-colors">
+                    <div class="flex items-center">
+                        <i class="fas fa-check-circle text-green-600 mr-3"></i>
+                        <span class="text-green-700">Verify Data</span>
+                    </div>
+                    <i class="fas fa-chevron-right text-green-600"></i>
+                </button>
+                
+                <button class="w-full flex items-center justify-between p-3 bg-yellow-50 rounded-lg hover:bg-yellow-100 transition-colors">
+                    <div class="flex items-center">
+                        <i class="fas fa-bug text-yellow-600 mr-3"></i>
+                        <span class="text-yellow-700">Troubleshoot Issues</span>
+                    </div>
+                    <i class="fas fa-chevron-right text-yellow-600"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Diagnostic Reports -->
+    <div class="bg-white rounded-lg shadow-md mb-8">
+        <div class="px-6 py-4 border-b border-gray-200">
+            <div class="flex items-center justify-between">
+                <h3 class="text-lg font-semibold text-gray-700">Diagnostic Reports</h3>
+                <button class="text-blue-600 hover:text-blue-800 text-sm">
+                    View All Reports
+                </button>
+            </div>
+        </div>
+        
+        <div class="p-6">
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead>
+                        <tr>
+                            <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Report Type
+                            </th>
+                            <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Status
+                            </th>
+                            <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Last Run
+                            </th>
+                            <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Duration
+                            </th>
+                            <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Issues Found
+                            </th>
+                            <th class="px-6 py-3 bg-gray-50"></th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white divide-y divide-gray-200">
+                        <!-- Example Report Rows -->
+                        <tr>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <div class="flex items-center">
+                                    <i class="fas fa-heartbeat text-green-500 mr-2"></i>
+                                    <span class="text-sm font-medium text-gray-900">Health Check</span>
+                                </div>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
+                                    Passed
+                                </span>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                5 mins ago
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                2m 15s
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                None
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                <button class="text-blue-600 hover:text-blue-900">View Report</button>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <div class="flex items-center">
+                                    <i class="fas fa-tachometer-alt text-yellow-500 mr-2"></i>
+                                    <span class="text-sm font-medium text-gray-900">Performance Scan</span>
+                                </div>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">
+                                    Warning
+                                </span>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                1 hour ago
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                5m 30s
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                2 Minor
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                <button class="text-blue-600 hover:text-blue-900">View Report</button>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Health Check Modal -->
+<div id="healthCheckModal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+    <div class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+        <div class="flex items-center justify-between mb-4">
+            <h3 class="text-lg font-medium text-gray-900">Running Health Check</h3>
+            <button class="text-gray-400 hover:text-gray-500">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="mt-2">
+            <div class="space-y-4">
+                <div class="flex items-center">
+                    <div class="w-6 h-6 flex items-center justify-center">
+                        <i class="fas fa-check-circle text-green-500"></i>
+                    </div>
+                    <div class="ml-3">
+                        <p class="text-sm font-medium text-gray-900">Checking file system integrity</p>
+                        <p class="text-sm text-gray-500">Verified</p>
+                    </div>
+                </div>
+                <div class="flex items-center">
+                    <div class="w-6 h-6 flex items-center justify-center">
+                        <div class="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500"></div>
+                    </div>
+                    <div class="ml-3">
+                        <p class="text-sm font-medium text-gray-900">Scanning for errors</p>
+                        <p class="text-sm text-gray-500">In progress...</p>
+                    </div>
+                </div>
+                <div class="flex items-center opacity-50">
+                    <div class="w-6 h-6 flex items-center justify-center">
+                        <i class="fas fa-circle text-gray-300"></i>
+                    </div>
+                    <div class="ml-3">
+                        <p class="text-sm font-medium text-gray-900">Analyzing performance</p>
+                        <p class="text-sm text-gray-500">Waiting to start</p>
+                    </div>
+                </div>
+            </div>
+            <div class="mt-4">
+                <div class="w-full bg-gray-200 rounded-full h-2">
+                    <div class="bg-blue-500 h-2 rounded-full" style="width: 45%"></div>
+                </div>
+                <p class="text-sm text-gray-500 text-center mt-2">45% Complete</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Event Log & Alerts Section -->
+<div class="max-w-7xl mx-auto px-4 py-8">
+    <!-- Alert Status Overview -->
+    <div class="bg-white rounded-lg shadow-md p-6 mb-8">
+        <div class="flex items-center justify-between mb-6">
+            <h3 class="text-lg font-semibold text-gray-700">Active Alerts</h3>
+            <div class="flex items-center space-x-4">
+                <button class="text-sm text-gray-500 hover:text-gray-700">
+                    <i class="fas fa-cog mr-1"></i>Configure Alerts
+                </button>
+                <select class="border border-gray-300 rounded-md px-3 py-1 text-sm">
+                    <option value="all">All Priorities</option>
+                    <option value="high">High Priority</option>
+                    <option value="medium">Medium Priority</option>
+                    <option value="low">Low Priority</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- Active Alerts Grid -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <!-- Critical Alert -->
+            <div class="border-l-4 border-red-500 bg-red-50 rounded-r-lg p-4">
+                <div class="flex items-center justify-between mb-2">
+                    <span class="text-red-800 font-medium">High I/O Latency</span>
+                    <span class="text-red-600 text-sm">5m ago</span>
+                </div>
+                <p class="text-sm text-red-700 mb-2">Write latency exceeds threshold (2.5ms)</p>
+                <div class="flex items-center justify-between">
+                    <span class="text-xs text-red-600">ID: ALT-2024-001</span>
+                    <button class="text-red-700 hover:text-red-800 text-sm">
+                        View Details
+                    </button>
+                </div>
+            </div>
+
+            <!-- Warning Alert -->
+            <div class="border-l-4 border-yellow-500 bg-yellow-50 rounded-r-lg p-4">
+                <div class="flex items-center justify-between mb-2">
+                    <span class="text-yellow-800 font-medium">Space Usage Warning</span>
+                    <span class="text-yellow-600 text-sm">15m ago</span>
+                </div>
+                <p class="text-sm text-yellow-700 mb-2">Volume usage above 80% threshold</p>
+                <div class="flex items-center justify-between">
+                    <span class="text-xs text-yellow-600">ID: ALT-2024-002</span>
+                    <button class="text-yellow-700 hover:text-yellow-800 text-sm">
+                        View Details
+                    </button>
+                </div>
+            </div>
+
+            <!-- Info Alert -->
+            <div class="border-l-4 border-blue-500 bg-blue-50 rounded-r-lg p-4">
+                <div class="flex items-center justify-between mb-2">
+                    <span class="text-blue-800 font-medium">Backup Recommended</span>
+                    <span class="text-blue-600 text-sm">1h ago</span>
+                </div>
+                <p class="text-sm text-blue-700 mb-2">Last backup was 7 days ago</p>
+                <div class="flex items-center justify-between">
+                    <span class="text-xs text-blue-600">ID: ALT-2024-003</span>
+                    <button class="text-blue-700 hover:text-blue-800 text-sm">
+                        View Details
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Event Log -->
+    <div class="bg-white rounded-lg shadow-md">
+        <div class="px-6 py-4 border-b border-gray-200">
+            <div class="flex items-center justify-between">
+                <h3 class="text-lg font-semibold text-gray-700">Event Log</h3>
+                <div class="flex items-center space-x-4">
+                    <div class="flex items-center space-x-2">
+                        <button class="text-sm px-3 py-1 rounded-md bg-gray-100 text-gray-700">
+                            <i class="fas fa-file-export mr-1"></i>Export
+                        </button>
+                        <button class="text-sm px-3 py-1 rounded-md bg-gray-100 text-gray-700">
+                            <i class="fas fa-filter mr-1"></i>Filter
+                        </button>
+                    </div>
+                    <select class="border border-gray-300 rounded-md px-3 py-1 text-sm">
+                        <option value="24h">Last 24 Hours</option>
+                        <option value="7d">Last 7 Days</option>
+                        <option value="30d">Last 30 Days</option>
+                        <option value="custom">Custom Range</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <!-- Event Timeline -->
+        <div class="p-6">
+            <div class="relative">
+                <!-- Timeline Line -->
+                <div class="absolute left-8 top-0 bottom-0 w-0.5 bg-gray-200"></div>
+
+                <!-- Timeline Events -->
+                <div class="space-y-6">
+                    <!-- Critical Event -->
+                    <div class="relative flex items-start group">
+                        <div class="flex-shrink-0 w-16 text-right text-xs text-gray-500 pt-1">
+                            09:45 AM
+                        </div>
+                        <div class="absolute left-8 w-4 h-4 bg-red-500 rounded-full transform -translate-x-1/2 mt-1.5 ring-4 ring-white"></div>
+                        <div class="flex-grow ml-10 bg-red-50 rounded-lg p-4">
+                            <div class="flex items-center justify-between mb-1">
+                                <span class="font-medium text-red-800">High Latency Alert Triggered</span>
+                                <span class="text-red-600 text-sm">Critical</span>
+                            </div>
+                            <p class="text-sm text-red-700">Write latency spike detected (2.5ms)</p>
+                        </div>
+                    </div>
+
+                    <!-- Warning Event -->
+                    <div class="relative flex items-start group">
+                        <div class="flex-shrink-0 w-16 text-right text-xs text-gray-500 pt-1">
+                            09:30 AM
+                        </div>
+                        <div class="absolute left-8 w-4 h-4 bg-yellow-500 rounded-full transform -translate-x-1/2 mt-1.5 ring-4 ring-white"></div>
+                        <div class="flex-grow ml-10 bg-yellow-50 rounded-lg p-4">
+                            <div class="flex items-center justify-between mb-1">
+                                <span class="font-medium text-yellow-800">Space Usage Warning</span>
+                                <span class="text-yellow-600 text-sm">Warning</span>
+                            </div>
+                            <p class="text-sm text-yellow-700">Volume usage reached 82% of capacity</p>
+                        </div>
+                    </div>
+
+                    <!-- Info Event -->
+                    <div class="relative flex items-start group">
+                        <div class="flex-shrink-0 w-16 text-right text-xs text-gray-500 pt-1">
+                            09:15 AM
+                        </div>
+                        <div class="absolute left-8 w-4 h-4 bg-blue-500 rounded-full transform -translate-x-1/2 mt-1.5 ring-4 ring-white"></div>
+                        <div class="flex-grow ml-10 bg-blue-50 rounded-lg p-4">
+                            <div class="flex items-center justify-between mb-1">
+                                <span class="font-medium text-blue-800">Container Mounted</span>
+                                <span class="text-blue-600 text-sm">Info</span>
+                            </div>
+                            <p class="text-sm text-blue-700">Container 'web-server-1' mounted the volume</p>
+                        </div>
+                    </div>
+
+                    <!-- Success Event -->
+                    <div class="relative flex items-start group">
+                        <div class="flex-shrink-0 w-16 text-right text-xs text-gray-500 pt-1">
+                            09:00 AM
+                        </div>
+                        <div class="absolute left-8 w-4 h-4 bg-green-500 rounded-full transform -translate-x-1/2 mt-1.5 ring-4 ring-white"></div>
+                        <div class="flex-grow ml-10 bg-green-50 rounded-lg p-4">
+                            <div class="flex items-center justify-between mb-1">
+                                <span class="font-medium text-green-800">Backup Completed</span>
+                                <span class="text-green-600 text-sm">Success</span>
+                            </div>
+                            <p class="text-sm text-green-700">Scheduled backup completed successfully</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Load More Button -->
+            <div class="text-center mt-8">
+                <button class="px-4 py-2 border border-gray-300 rounded-md text-sm text-gray-700 hover:bg-gray-50">
+                    Load More Events
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Alert Configuration Modal -->
+<div id="alertConfigModal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+    <div class="relative top-20 mx-auto p-5 border w-2/3 shadow-lg rounded-md bg-white">
+        <div class="flex items-center justify-between border-b border-gray-200 pb-4">
+            <h3 class="text-lg font-medium text-gray-900">Alert Configuration</h3>
+            <button class="text-gray-400 hover:text-gray-500">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        
+        <div class="mt-4">
+            <!-- Alert Configuration Form -->
+            <div class="space-y-6">
+                <!-- Latency Thresholds -->
+                <div>
+                    <h4 class="text-sm font-medium text-gray-700 mb-2">Latency Thresholds</h4>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm text-gray-600 mb-1">Read Latency (ms)</label>
+                            <input type="number" class="w-full px-3 py-2 border border-gray-300 rounded-md" value="2.0">
+                        </div>
+                        <div>
+                            <label class="block text-sm text-gray-600 mb-1">Write Latency (ms)</label>
+                            <input type="number" class="w-full px-3 py-2 border border-gray-300 rounded-md" value="2.5">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Space Usage -->
+                <div>
+                    <h4 class="text-sm font-medium text-gray-700 mb-2">Space Usage Alerts</h4>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm text-gray-600 mb-1">Warning Threshold (%)</label>
+                            <input type="number" class="w-full px-3 py-2 border border-gray-300 rounded-md" value="80">
+                        </div>
+                        <div>
+                            <label class="block text-sm text-gray-600 mb-1">Critical Threshold (%)</label>
+                            <input type="number" class="w-full px-3 py-2 border border-gray-300 rounded-md" value="90">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Notification Settings -->
+                <div>
+                    <h4 class="text-sm font-medium text-gray-700 mb-2">Notification Settings</h4>
+                    <div class="space-y-2">
+                        <label class="flex items-center">
+                            <input type="checkbox" class="form-checkbox" checked>
+                            <span class="ml-2 text-sm text-gray-600">Email Notifications</span>
+                        </label>
+                        <label class="flex items-center">
+                            <input type="checkbox" class="form-checkbox" checked>
+                            <span class="ml-2 text-sm text-gray-600">Dashboard Alerts</span>
+                        </label>
+                        <label class="flex items-center">
+                            <input type="checkbox" class="form-checkbox">
+                            <span class="ml-2 text-sm text-gray-600">Webhook Notifications</span>
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="mt-6 flex justify-end space-x-4">
+                <button class="px-4 py-2 text-gray-600 hover:text-gray-800">
+                    Cancel
+                </button>
+                <button class="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600">
+                    Save Changes
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Resource Allocation & Performance Analytics Section -->
+<div class="max-w-7xl mx-auto px-4 py-8">
+    <!-- Resource Usage Overview -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+        <!-- Resource Allocation Card -->
+        <div class="bg-white rounded-lg shadow-md p-6">
+            <div class="flex items-center justify-between mb-6">
+                <h3 class="text-lg font-semibold text-gray-700">Resource Allocation</h3>
+                <select class="border border-gray-300 rounded-md px-3 py-1 text-sm">
+                    <option value="24h">Last 24 Hours</option>
+                    <option value="7d">Last 7 Days</option>
+                    <option value="30d">Last 30 Days</option>
+                </select>
+            </div>
+            <div class="space-y-4">
+                <!-- Storage Usage -->
+                <div class="space-y-2">
+                    <div class="flex justify-between text-sm">
+                        <span class="text-gray-600">Storage Usage</span>
+                        <span class="text-gray-900">8.2 GB / 10 GB</span>
+                    </div>
+                    <div class="w-full bg-gray-200 rounded-full h-2">
+                        <div class="bg-blue-500 h-2 rounded-full" style="width: 82%"></div>
+                    </div>
+                </div>
+
+                <!-- IOPS Allocation -->
+                <div class="space-y-2">
+                    <div class="flex justify-between text-sm">
+                        <span class="text-gray-600">IOPS Usage</span>
+                        <span class="text-gray-900">450 / 1000 IOPS</span>
+                    </div>
+                    <div class="w-full bg-gray-200 rounded-full h-2">
+                        <div class="bg-green-500 h-2 rounded-full" style="width: 45%"></div>
+                    </div>
+                </div>
+
+                <!-- Bandwidth -->
+                <div class="space-y-2">
+                    <div class="flex justify-between text-sm">
+                        <span class="text-gray-600">Bandwidth</span>
+                        <span class="text-gray-900">25 MB/s / 100 MB/s</span>
+                    </div>
+                    <div class="w-full bg-gray-200 rounded-full h-2">
+                        <div class="bg-purple-500 h-2 rounded-full" style="width: 25%"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Performance Metrics Card -->
+        <div class="bg-white rounded-lg shadow-md p-6">
+            <div class="flex items-center justify-between mb-6">
+                <h3 class="text-lg font-semibold text-gray-700">Performance Metrics</h3>
+                <button class="text-sm text-blue-600 hover:text-blue-800">
+                    <i class="fas fa-expand-alt mr-1"></i>Full Analysis
+                </button>
+            </div>
+            <div class="h-64">
+                <canvas id="performanceMetricsChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- Analytics Summary -->
+    <div class="bg-white rounded-lg shadow-md p-6">
+        <div class="flex items-center justify-between mb-6">
+            <h3 class="text-lg font-semibold text-gray-700">Performance Summary</h3>
+            <button class="text-sm text-blue-600 hover:text-blue-800">
+                Download Report
+            </button>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <!-- Read Performance -->
+            <div class="bg-gray-50 rounded-lg p-4">
+                <h4 class="text-sm font-medium text-gray-600 mb-2">Read Performance</h4>
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-2xl font-bold text-gray-900">24.5 MB/s</p>
+                        <p class="text-sm text-green-600">
+                            <i class="fas fa-arrow-up mr-1"></i>5% vs last week
+                        </p>
+                    </div>
+                    <div class="text-green-500">
+                        <i class="fas fa-check-circle text-2xl"></i>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Write Performance -->
+            <div class="bg-gray-50 rounded-lg p-4">
+                <h4 class="text-sm font-medium text-gray-600 mb-2">Write Performance</h4>
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-2xl font-bold text-gray-900">18.2 MB/s</p>
+                        <p class="text-sm text-yellow-600">
+                            <i class="fas fa-arrow-down mr-1"></i>2% vs last week
+                        </p>
+                    </div>
+                    <div class="text-yellow-500">
+                        <i class="fas fa-exclamation-circle text-2xl"></i>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Overall Health -->
+            <div class="bg-gray-50 rounded-lg p-4">
+                <h4 class="text-sm font-medium text-gray-600 mb-2">Overall Health Score</h4>
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-2xl font-bold text-gray-900">92/100</p>
+                        <p class="text-sm text-green-600">Good Performance</p>
+                    </div>
+                    <div class="text-blue-500">
+                        <i class="fas fa-chart-line text-2xl"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+<script>
+
+// First chunk - Core Setup and Volume Details
+
+// Constants
+const API_BASE_URL = 'http://172.22.106.116:2370';
+let volumeData = null;
+let monitoringInterval = null;
+let isMonitoringPaused = false;
+
+// Chart instances
+let performanceChart = null;
+let storageUtilizationChart = null;
+let accessPatternChart = null;
+let resourceAllocationChart = null;
+
+
+// Utility Functions
+function formatBytes(bytes) {
+    if (bytes === 0) return '0 B';
+    const k = 1024;
+    const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+}
+
+function formatTimestamp(timestamp) {
+    return new Date(timestamp).toLocaleString();
+}
+
+// Core Volume Functions
+async function fetchVolumeDetails() {
+    try {
+        const volumeName = new URLSearchParams(window.location.search).get('name');
+        if (!volumeName) {
+            throw new Error('Volume name not provided');
+        }
+
+        showLoading();
+        
+        const [volumeInfo, containerInfo] = await Promise.all([
+            $.get(`${API_BASE_URL}/volumes/${volumeName}`),
+            $.get(`${API_BASE_URL}/containers/json?all=true`)
+        ]);
+
+        volumeData = {
+            ...volumeInfo,
+            containers: getVolumeContainers(volumeInfo.Name, containerInfo)
+        };
+
+        updateVolumeDetails(volumeData);
+        hideLoading();
+        
+    } catch (error) {
+        console.error('Error fetching volume details:', error);
+        showError('Failed to fetch volume details. Please try again.');
+        hideLoading();
+    }
+}
+
+function getVolumeContainers(volumeName, containers) {
+    return containers.filter(container => {
+        return container.Mounts.some(mount => 
+            mount.Type === 'volume' && mount.Name === volumeName
+        );
+    });
+}
+
+// UI Update Functions
+function updateVolumeDetails(volume) {
+    // Update volume name and basic info
+    $('#volumeName').text(volume.Name);
+    $('#volumeDetailName').text(volume.Name);
+    $('#volumeDriver').text(volume.Driver);
+    $('#volumeCreated').text(formatTimestamp(volume.CreatedAt));
+    $('#volumeScope').text(volume.Scope);
+    $('#volumeMountPoint').text(volume.Mountpoint);
+
+    // Update volume status
+    const status = getVolumeStatus(volume);
+    $('#volumeStatus')
+        .text(status.text)
+        .removeClass()
+        .addClass(`px-3 py-1 rounded-full text-sm font-medium ${status.class}`);
+
+    // Update mount status
+    const isMounted = volume.containers.length > 0;
+    $('#mountStatus').text(isMounted ? 'Yes' : 'No');
+
+    // Update container count
+    $('#containerCount').text(volume.containers.length);
+
+    // Update labels
+    updateVolumeLabels(volume.Labels || {});
+}
+
+function getVolumeStatus(volume) {
+    if (volume.containers.length > 0) {
+        return {
+            text: 'In Use',
+            class: 'bg-green-100 text-green-800'
+        };
+    }
+    
+    if (volume.Labels && Object.keys(volume.Labels).length > 0) {
+        return {
+            text: 'Configured',
+            class: 'bg-blue-100 text-blue-800'
+        };
+    }
+    
+    return {
+        text: 'Available',
+        class: 'bg-yellow-100 text-yellow-800'
+    };
+}
+
+function updateVolumeLabels(labels) {
+    const labelsContainer = $('#volumeLabels').empty();
+    
+    if (Object.keys(labels).length === 0) {
+        labelsContainer.append(`
+            <span class="px-3 py-1 bg-gray-100 text-gray-800 rounded-full text-sm">
+                No labels
+            </span>
+        `);
+        return;
+    }
+
+    Object.entries(labels).forEach(([key, value]) => {
+        labelsContainer.append(`
+            <span class="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm">
+                ${key}: ${value}
+            </span>
+        `);
+    });
+}
+
+// Loading and Error Handling
+function showLoading() {
+    $('#loadingOverlay').removeClass('hidden');
+}
+
+function hideLoading() {
+    $('#loadingOverlay').addClass('hidden');
+}
+
+function showError(message) {
+    // Implementation of error notification
+    const notification = `
+        <div class="notification bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-4">
+            <div class="flex">
+                <div class="flex-shrink-0">
+                    <i class="fas fa-exclamation-circle"></i>
+                </div>
+                <div class="ml-3">
+                    <p class="text-sm">${message}</p>
+                </div>
+            </div>
+        </div>
+    `;
+    $('#notificationContainer').append(notification);
+    setTimeout(() => {
+        $('.notification').first().remove();
+    }, 5000);
+}
+
+// Performance Monitoring and Metrics Implementation
+
+// Chart instances and data
+
+const performanceData = {
+    reads: [],
+    writes: [],
+    timestamps: [],
+    maxDataPoints: 50
+};
+
+// Initialize Charts
+function initializeCharts() {
+    // Main Performance Chart
+    const perfCtx = document.getElementById('performanceChart').getContext('2d');
+    performanceChart = new Chart(perfCtx, {
+        type: 'line',
+        data: {
+            labels: [],
+            datasets: [
+                {
+                    label: 'Read Speed (MB/s)',
+                    borderColor: 'rgb(59, 130, 246)',
+                    data: [],
+                    tension: 0.4,
+                    fill: false
+                },
+                {
+                    label: 'Write Speed (MB/s)',
+                    borderColor: 'rgb(34, 197, 94)',
+                    data: [],
+                    tension: 0.4,
+                    fill: false
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            animation: {
+                duration: 0
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    title: {
+                        display: true,
+                        text: 'MB/s'
+                    }
+                },
+                x: {
+                    grid: {
+                        display: false
+                    }
+                }
+            },
+            plugins: {
+                legend: {
+                    position: 'bottom'
+                },
+                tooltip: {
+                    mode: 'index',
+                    intersect: false
+                }
+            }
+        }
+    });
+
+    // Initialize Storage Utilization Chart
+    const storageCtx = document.getElementById('storageUtilizationChart').getContext('2d');
+    storageUtilizationChart = new Chart(storageCtx, {
+        type: 'doughnut',
+        data: {
+            labels: ['Used', 'Available'],
+            datasets: [{
+                data: [0, 100],
+                backgroundColor: [
+                    'rgb(59, 130, 246)',
+                    'rgb(229, 231, 235)'
+                ]
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            cutout: '75%',
+            plugins: {
+                legend: {
+                    position: 'bottom'
+                }
+            }
+        }
+    });
+}
+
+// Fetch Performance Metrics
+async function fetchPerformanceMetrics() {
+    try {
+        const volumeName = new URLSearchParams(window.location.search).get('name');
+        if (!volumeName) return;
+
+        // Fetch volume stats from Docker API
+        const response = await $.get(`${API_BASE_URL}/volumes/${volumeName}/stats`);
+        
+        // Process and update metrics
+        updatePerformanceMetrics(response);
+        
+    } catch (error) {
+        console.error('Error fetching performance metrics:', error);
+        // Don't show error notification for metrics updates
+    }
+}
+
+// Update Performance Metrics
+function updatePerformanceMetrics(metrics) {
+    // Update performance data arrays
+    const timestamp = new Date().toLocaleTimeString();
+    performanceData.timestamps.push(timestamp);
+    performanceData.reads.push(metrics.read_rate || 0);
+    performanceData.writes.push(metrics.write_rate || 0);
+
+    // Maintain fixed array length
+    if (performanceData.timestamps.length > performanceData.maxDataPoints) {
+        performanceData.timestamps.shift();
+        performanceData.reads.shift();
+        performanceData.writes.shift();
+    }
+
+    // Update performance chart
+    updatePerformanceChart();
+
+    // Update metrics cards
+    updateMetricsCards(metrics);
+}
+
+// Update Performance Chart
+function updatePerformanceChart() {
+    if (!performanceChart) return;
+
+    performanceChart.data.labels = performanceData.timestamps;
+    performanceChart.data.datasets[0].data = performanceData.reads;
+    performanceChart.data.datasets[1].data = performanceData.writes;
+    performanceChart.update('none'); // Update without animation
+}
+
+// Update Metrics Cards
+function updateMetricsCards(metrics) {
+    // Update I/O Operations
+    $('#readIops').text(`${metrics.read_iops || 0}/s`);
+    $('#writeIops').text(`${metrics.write_iops || 0}/s`);
+    $('#ioUpdateTime').text('Just now');
+
+    // Update Throughput
+    $('#readSpeed').text(`${formatBytes(metrics.read_rate || 0)}/s`);
+    $('#writeSpeed').text(`${formatBytes(metrics.write_rate || 0)}/s`);
+    $('#throughputUpdateTime').text('Just now');
+
+    // Update Latency
+    $('#readLatency').text(`${(metrics.read_latency || 0).toFixed(2)}ms`);
+    $('#writeLatency').text(`${(metrics.write_latency || 0).toFixed(2)}ms`);
+    $('#latencyUpdateTime').text('Just now');
+
+    // Update Queue Depth
+    $('#readQueue').text(metrics.read_queue || 0);
+    $('#writeQueue').text(metrics.write_queue || 0);
+    $('#queueUpdateTime').text('Just now');
+
+    // Update progress bars
+    updateProgressBars(metrics);
+}
+
+// Update Progress Bars
+function updateProgressBars(metrics) {
+    // Update IOPS progress
+    const maxIops = 1000; // Example max IOPS
+    const iopsPercentage = ((metrics.read_iops + metrics.write_iops) / maxIops) * 100;
+    $('.iops-progress').css('width', `${Math.min(iopsPercentage, 100)}%`);
+
+    // Update Throughput progress
+    const maxThroughput = 100 * 1024 * 1024; // 100 MB/s example
+    const throughputPercentage = ((metrics.read_rate + metrics.write_rate) / maxThroughput) * 100;
+    $('.throughput-progress').css('width', `${Math.min(throughputPercentage, 100)}%`);
+
+    // Update Storage progress
+    if (metrics.capacity && metrics.used) {
+        const usedPercentage = (metrics.used / metrics.capacity) * 100;
+        updateStorageUtilizationChart(usedPercentage);
+    }
+}
+
+// Update Storage Utilization Chart
+function updateStorageUtilizationChart(usedPercentage) {
+    if (!storageUtilizationChart) return;
+
+    storageUtilizationChart.data.datasets[0].data = [
+        usedPercentage,
+        100 - usedPercentage
+    ];
+    storageUtilizationChart.update('none');
+
+    // Update storage text
+    $('#storagePercentage').text(`${usedPercentage.toFixed(1)}%`);
+}
+
+// Initialize Performance Monitoring
+function initializePerformanceMonitoring() {
+    initializeCharts();
+    
+    // Start metrics polling
+    fetchPerformanceMetrics(); // Initial fetch
+    setInterval(fetchPerformanceMetrics, 5000); // Poll every 5 seconds
+
+    // Setup chart type toggle
+    $('#chartTypeSelect').change(function() {
+        const selectedType = $(this).val();
+        updateChartDisplay(selectedType);
+    });
+
+    // Setup time range buttons
+    $('.time-range-btn').click(function() {
+        $('.time-range-btn').removeClass('bg-blue-500 text-white').addClass('bg-gray-100');
+        $(this).removeClass('bg-gray-100').addClass('bg-blue-500 text-white');
+        updateTimeRange($(this).data('range'));
+    });
+}
+
+// Time Range Update
+function updateTimeRange(range) {
+    performanceData.maxDataPoints = range === '1H' ? 60 : range === '6H' ? 360 : 720;
+    // Clear existing data
+    performanceData.timestamps = [];
+    performanceData.reads = [];
+    performanceData.writes = [];
+    updatePerformanceChart();
+}
+
+// Event Logging and Alerts System Implementation
+
+// Alert and Event Constants
+const ALERT_LEVELS = {
+    CRITICAL: 'critical',
+    WARNING: 'warning',
+    INFO: 'info'
+};
+
+const ALERT_THRESHOLDS = {
+    LATENCY: {
+        WARNING: 2.0,  // ms
+        CRITICAL: 5.0  // ms
+    },
+    STORAGE: {
+        WARNING: 80,   // percentage
+        CRITICAL: 90   // percentage
+    },
+    IOPS: {
+        WARNING: 800,  // IOPS
+        CRITICAL: 950  // IOPS
+    }
+};
+
+// Alert and Event Management
+class AlertManager {
+    constructor() {
+        this.activeAlerts = new Map();
+        this.eventHistory = [];
+        this.maxEvents = 100;
+        this.alertConfigs = this.loadAlertConfigs();
+    }
+
+    loadAlertConfigs() {
+        // Load from localStorage or use defaults
+        const savedConfigs = localStorage.getItem('volumeAlertConfigs');
+        return savedConfigs ? JSON.parse(savedConfigs) : {
+            enableEmailAlerts: true,
+            enableDashboardAlerts: true,
+            latencyThreshold: ALERT_THRESHOLDS.LATENCY.WARNING,
+            storageThreshold: ALERT_THRESHOLDS.STORAGE.WARNING,
+            iopsThreshold: ALERT_THRESHOLDS.IOPS.WARNING
+        };
+    }
+
+    checkMetrics(metrics) {
+        this.checkLatencyAlert(metrics);
+        this.checkStorageAlert(metrics);
+        this.checkIopsAlert(metrics);
+    }
+
+    checkLatencyAlert(metrics) {
+        const maxLatency = Math.max(metrics.read_latency || 0, metrics.write_latency || 0);
+        if (maxLatency > ALERT_THRESHOLDS.LATENCY.CRITICAL) {
+            this.createAlert('CRITICAL_LATENCY', {
+                level: ALERT_LEVELS.CRITICAL,
+                message: `High latency detected: ${maxLatency.toFixed(2)}ms`,
+                value: maxLatency
+            });
+        } else if (maxLatency > ALERT_THRESHOLDS.LATENCY.WARNING) {
+            this.createAlert('WARNING_LATENCY', {
+                level: ALERT_LEVELS.WARNING,
+                message: `Elevated latency: ${maxLatency.toFixed(2)}ms`,
+                value: maxLatency
+            });
+        }
+    }
+
+    createAlert(id, alertData) {
+        if (!this.activeAlerts.has(id)) {
+            this.activeAlerts.set(id, {
+                ...alertData,
+                timestamp: new Date(),
+                id: id
+            });
+            this.notifyAlert(this.activeAlerts.get(id));
+            this.addEvent('alert_created', alertData);
+        }
+    }
+
+    notifyAlert(alert) {
+        // Create notification element
+        const alertHtml = `
+            <div class="alert-notification alert-${alert.level} transform transition-all duration-300"
+                 data-alert-id="${alert.id}">
+                <div class="p-4 rounded-lg shadow-lg border-l-4 ${this.getAlertColorClasses(alert.level)}">
+                    <div class="flex items-center">
+                        <div class="flex-shrink-0">
+                            ${this.getAlertIcon(alert.level)}
+                        </div>
+                        <div class="ml-3">
+                            <p class="text-sm font-medium">${alert.message}</p>
+                            <p class="text-xs mt-1 text-gray-600">
+                                ${new Date().toLocaleTimeString()}
+                            </p>
+                        </div>
+                        <button class="ml-auto close-alert" onclick="alertManager.dismissAlert('${alert.id}')">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        $('#notificationContainer').prepend(alertHtml);
+        
+        // Auto-dismiss after 5 seconds for non-critical alerts
+        if (alert.level !== ALERT_LEVELS.CRITICAL) {
+            setTimeout(() => this.dismissAlert(alert.id), 5000);
+        }
+    }
+
+    dismissAlert(alertId) {
+        const alertElement = $(`.alert-notification[data-alert-id="${alertId}"]`);
+        alertElement.addClass('opacity-0');
+        setTimeout(() => {
+            alertElement.remove();
+            this.activeAlerts.delete(alertId);
+        }, 300);
+    }
+
+    addEvent(type, data) {
+        const event = {
+            type,
+            data,
+            timestamp: new Date(),
+            id: `evt-${Date.now()}`
+        };
+
+        this.eventHistory.unshift(event);
+        if (this.eventHistory.length > this.maxEvents) {
+            this.eventHistory.pop();
+        }
+
+        this.updateEventTimeline();
+    }
+
+    updateEventTimeline() {
+        const timelineContainer = $('#accessTimeline');
+        timelineContainer.empty();
+
+        this.eventHistory.forEach(event => {
+            const eventHtml = `
+                <div class="flex items-start space-x-4 event-item" data-event-id="${event.id}">
+                    <div class="flex-shrink-0 w-8 h-8 rounded-full ${this.getEventIconBackground(event.type)} 
+                         flex items-center justify-center">
+                        ${this.getEventIcon(event.type)}
+                    </div>
+                    <div class="flex-grow">
+                        <div class="flex items-center justify-between">
+                            <h4 class="text-sm font-medium text-gray-900">
+                                ${this.getEventTitle(event)}
+                            </h4>
+                            <span class="text-sm text-gray-500">
+                                ${this.getRelativeTime(event.timestamp)}
+                            </span>
+                        </div>
+                        <p class="text-sm text-gray-600 mt-1">
+                            ${this.getEventDescription(event)}
+                        </p>
+                    </div>
+                </div>
+            `;
+            timelineContainer.append(eventHtml);
+        });
+    }
+
+    getAlertColorClasses(level) {
+        switch (level) {
+            case ALERT_LEVELS.CRITICAL:
+                return 'border-red-500 bg-red-50';
+            case ALERT_LEVELS.WARNING:
+                return 'border-yellow-500 bg-yellow-50';
+            case ALERT_LEVELS.INFO:
+                return 'border-blue-500 bg-blue-50';
+            default:
+                return 'border-gray-500 bg-gray-50';
+        }
+    }
+
+    getRelativeTime(timestamp) {
+        const diff = new Date() - new Date(timestamp);
+        const minutes = Math.floor(diff / 60000);
+        
+        if (minutes < 1) return 'Just now';
+        if (minutes < 60) return `${minutes}m ago`;
+        
+        const hours = Math.floor(minutes / 60);
+        if (hours < 24) return `${hours}h ago`;
+        
+        return new Date(timestamp).toLocaleDateString();
+    }
+}
+
+// Initialize Alert Manager
+let alertManager;
+
+// Event Handlers
+function setupEventHandlers() {
+    // Filter events
+    $('#timelineFilter').change(function() {
+        const timeRange = $(this).val();
+        filterEvents(timeRange);
+    });
+
+    // Configure alerts
+    $('#configureAlertsBtn').click(function() {
+        showAlertConfigModal();
+    });
+}
+
+function filterEvents(timeRange) {
+    const now = new Date();
+    const msRange = {
+        '24h': 24 * 60 * 60 * 1000,
+        '7d': 7 * 24 * 60 * 60 * 1000,
+        '30d': 30 * 24 * 60 * 60 * 1000
+    }[timeRange];
+
+    $('.event-item').each(function() {
+        const eventId = $(this).data('event-id');
+        const event = alertManager.eventHistory.find(e => e.id === eventId);
+        if (event) {
+            const show = (now - new Date(event.timestamp)) <= msRange;
+            $(this).toggle(show);
+        }
+    });
+}
+
+// Resource Allocation and Advanced Features Implementation
+
+class ResourceMonitor {
+    constructor() {
+        this.resourceStats = {
+            storage: {},
+            iops: {},
+            bandwidth: {}
+        };
+        this.historicalData = {
+            hourly: [],
+            daily: [],
+            weekly: []
+        };
+        this.analyticsPeriod = '24h'; // default period
+    }
+
+    // Resource Tracking Methods
+    async trackResources(volumeName) {
+        try {
+            const stats = await this.fetchResourceStats(volumeName);
+            this.updateResourceMetrics(stats);
+            this.updateResourceCharts();
+            this.analyzePerformance(stats);
+        } catch (error) {
+            console.error('Resource tracking error:', error);
+        }
+    }
+
+    async fetchResourceStats(volumeName) {
+        try {
+            const response = await $.ajax({
+                url: `${API_BASE_URL}/volumes/${volumeName}/stats`,
+                method: 'GET'
+            });
+            return this.processResourceStats(response);
+        } catch (error) {
+            throw new Error('Failed to fetch resource statistics');
+        }
+    }
+
+    processResourceStats(stats) {
+        return {
+            storage: {
+                total: stats.capacity || 0,
+                used: stats.used || 0,
+                available: (stats.capacity - stats.used) || 0,
+                percentage: stats.capacity ? ((stats.used / stats.capacity) * 100) : 0
+            },
+            iops: {
+                read: stats.read_iops || 0,
+                write: stats.write_iops || 0,
+                total: (stats.read_iops + stats.write_iops) || 0,
+                limit: stats.iops_limit || 1000
+            },
+            bandwidth: {
+                read: stats.read_rate || 0,
+                write: stats.write_rate || 0,
+                total: (stats.read_rate + stats.write_rate) || 0,
+                limit: stats.bandwidth_limit || (100 * 1024 * 1024) // 100 MB/s default
+            }
+        };
+    }
+
+    updateResourceMetrics(stats) {
+        // Update storage metrics
+        this.updateStorageMetrics(stats.storage);
+        
+        // Update IOPS metrics
+        this.updateIOPSMetrics(stats.iops);
+        
+        // Update bandwidth metrics
+        this.updateBandwidthMetrics(stats.bandwidth);
+        
+        // Store historical data
+        this.updateHistoricalData(stats);
+    }
+
+    updateStorageMetrics(storage) {
+        $('#storageUsed').text(formatBytes(storage.used));
+        $('#storageTotal').text(formatBytes(storage.total));
+        $('#storageAvailable').text(formatBytes(storage.available));
+        
+        // Update storage progress bar
+        const storagePercentage = storage.percentage;
+        $('.storage-progress-bar').css('width', `${storagePercentage}%`);
+        $('.storage-progress-bar').toggleClass('bg-red-500', storagePercentage > 90)
+            .toggleClass('bg-yellow-500', storagePercentage > 75 && storagePercentage <= 90)
+            .toggleClass('bg-blue-500', storagePercentage <= 75);
+
+        // Update storage trend
+        const trend = this.calculateStorageTrend();
+        $('#storageTrend').html(this.getTrendIndicator(trend));
+    }
+
+    updateIOPSMetrics(iops) {
+        $('#readIOPS').text(`${iops.read}/s`);
+        $('#writeIOPS').text(`${iops.write}/s`);
+        $('#totalIOPS').text(`${iops.total}/s`);
+        
+        // Update IOPS utilization
+        const iopsPercentage = (iops.total / iops.limit) * 100;
+        $('.iops-progress-bar').css('width', `${iopsPercentage}%`);
+    }
+
+    updateBandwidthMetrics(bandwidth) {
+        $('#readBandwidth').text(formatBytes(bandwidth.read) + '/s');
+        $('#writeBandwidth').text(formatBytes(bandwidth.write) + '/s');
+        $('#totalBandwidth').text(formatBytes(bandwidth.total) + '/s');
+        
+        // Update bandwidth utilization
+        const bandwidthPercentage = (bandwidth.total / bandwidth.limit) * 100;
+        $('.bandwidth-progress-bar').css('width', `${bandwidthPercentage}%`);
+    }
+
+    updateHistoricalData(stats) {
+        const timestamp = new Date();
+        const dataPoint = {
+            timestamp,
+            ...stats
+        };
+
+        // Update hourly data (keep last 24 hours)
+        this.historicalData.hourly.push(dataPoint);
+        if (this.historicalData.hourly.length > 24) {
+            this.historicalData.hourly.shift();
+        }
+
+        // Update daily data if it's a new day
+        if (this.shouldUpdateDailyData()) {
+            const dailyAverage = this.calculateDailyAverage();
+            this.historicalData.daily.push(dailyAverage);
+            if (this.historicalData.daily.length > 30) {
+                this.historicalData.daily.shift();
+            }
+        }
+    }
+
+    // Performance Analysis Methods
+    analyzePerformance(stats) {
+        const analysis = {
+            storageEfficiency: this.analyzeStorageEfficiency(stats.storage),
+            iopsEfficiency: this.analyzeIOPSEfficiency(stats.iops),
+            bandwidthEfficiency: this.analyzeBandwidthEfficiency(stats.bandwidth),
+            recommendations: []
+        };
+
+        this.updatePerformanceAnalysis(analysis);
+    }
+
+    analyzeStorageEfficiency(storage) {
+        const efficiency = {
+            score: 0,
+            status: 'good',
+            recommendations: []
+        };
+
+        // Calculate storage efficiency score
+        const usagePercentage = storage.percentage;
+        if (usagePercentage > 90) {
+            efficiency.score = 30;
+            efficiency.status = 'critical';
+            efficiency.recommendations.push('Immediate action required: Storage nearly full');
+        } else if (usagePercentage > 80) {
+            efficiency.score = 60;
+            efficiency.status = 'warning';
+            efficiency.recommendations.push('Consider expanding storage capacity');
+        } else if (usagePercentage > 70) {
+            efficiency.score = 80;
+            efficiency.status = 'attention';
+            efficiency.recommendations.push('Monitor storage growth rate');
+        } else {
+            efficiency.score = 100;
+        }
+
+        return efficiency;
+    }
+
+    // UI Update Methods
+    updateResourceCharts() {
+        this.updateAllocationChart();
+        this.updateTrendsChart();
+        this.updatePerformanceChart();
+    }
+
+    updateAllocationChart() {
+        if (!this.allocationChart) {
+            const ctx = document.getElementById('resourceAllocationChart').getContext('2d');
+            this.allocationChart = new Chart(ctx, {
+                type: 'doughnut',
+                data: this.getAllocationChartData(),
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom'
+                        }
+                    }
+                }
+            });
+        } else {
+            this.allocationChart.data = this.getAllocationChartData();
+            this.allocationChart.update();
+        }
+    }
+
+    getAllocationChartData() {
+        const stats = this.resourceStats.storage;
+        return {
+            labels: ['Used Space', 'Available Space'],
+            datasets: [{
+                data: [stats.used, stats.available],
+                backgroundColor: [
+                    'rgb(59, 130, 246)',
+                    'rgb(229, 231, 235)'
+                ]
+            }]
+        };
+    }
+
+    // Utility Methods
+    getTrendIndicator(trend) {
+        if (trend > 0) {
+            return `<i class="fas fa-arrow-up text-red-500"></i> ${trend.toFixed(1)}%`;
+        } else if (trend < 0) {
+            return `<i class="fas fa-arrow-down text-green-500"></i> ${Math.abs(trend).toFixed(1)}%`;
+        }
+        return `<i class="fas fa-minus text-gray-500"></i> 0%`;
+    }
+}
+
+// Initialize Resource Monitor
+let resourceMonitor;
+
+// Setup Advanced Features
+function initializeAdvancedFeatures() {
+    resourceMonitor = new ResourceMonitor();
+    
+    // Initialize resource monitoring
+    const volumeName = new URLSearchParams(window.location.search).get('name');
+    if (volumeName) {
+        // Start resource tracking
+        resourceMonitor.trackResources(volumeName);
+        
+        // Set up interval for continuous monitoring
+        setInterval(() => {
+            resourceMonitor.trackResources(volumeName);
+        }, 30000); // Update every 30 seconds
+    }
+
+    // Setup event handlers
+    setupAdvancedEventHandlers();
+}
+
+function setupAdvancedEventHandlers() {
+    // Period selector
+    $('#analyticsPeriod').change(function() {
+        resourceMonitor.analyticsPeriod = $(this).val();
+        resourceMonitor.updateResourceCharts();
+    });
+
+    // Export data
+    $('#exportData').click(function() {
+        exportResourceData();
+    });
+}
+
+// Initialize
+$(document).ready(function() {
+    // Initial load
+    fetchVolumeDetails();
+
+    // Setup refresh button
+    $('#refreshBtn').click(function() {
+        fetchVolumeDetails();
+    });
+
+    // Setup auto-refresh
+    $('#refreshInterval').change(function() {
+        const interval = parseInt($(this).val()) * 1000;
+        if (monitoringInterval) {
+            clearInterval(monitoringInterval);
+        }
+        if (interval > 0 && !isMonitoringPaused) {
+            monitoringInterval = setInterval(fetchVolumeDetails, interval);
+        }
+    });
+
+    // Setup pause/resume monitoring
+    $('#pauseMonitoring').click(function() {
+        isMonitoringPaused = !isMonitoringPaused;
+        if (isMonitoringPaused) {
+            $(this).html('<i class="fas fa-play mr-2"></i>Resume');
+            if (monitoringInterval) {
+                clearInterval(monitoringInterval);
+            }
+        } else {
+            $(this).html('<i class="fas fa-pause mr-2"></i>Pause');
+            const interval = parseInt($('#refreshInterval').val()) * 1000;
+            if (interval > 0) {
+                monitoringInterval = setInterval(fetchVolumeDetails, interval);
+            }
+        }
+    });
+
+    // Function to destroy existing charts
+function destroyCharts() {
+    if (performanceChart) {
+        performanceChart.destroy();
+        performanceChart = null;
+    }
+    if (storageUtilizationChart) {
+        storageUtilizationChart.destroy();
+        storageUtilizationChart = null;
+    }
+    if (accessPatternChart) {
+        accessPatternChart.destroy();
+        accessPatternChart = null;
+    }
+    if (resourceAllocationChart) {
+        resourceAllocationChart.destroy();
+        resourceAllocationChart = null;
+    }
+}
+
+// Initialize Charts
+function initializeCharts() {
+    // First destroy any existing charts
+    destroyCharts();
+
+    // Initialize Performance Chart
+    const perfCtx = document.getElementById('performanceChart');
+    if (perfCtx) {
+        performanceChart = new Chart(perfCtx.getContext('2d'), {
+            type: 'line',
+            data: {
+                labels: [],
+                datasets: [
+                    {
+                        label: 'Read Speed (MB/s)',
+                        borderColor: 'rgb(59, 130, 246)',
+                        data: [],
+                        tension: 0.4,
+                        fill: false
+                    },
+                    {
+                        label: 'Write Speed (MB/s)',
+                        borderColor: 'rgb(34, 197, 94)',
+                        data: [],
+                        tension: 0.4,
+                        fill: false
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                animation: {
+                    duration: 0
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        title: {
+                            display: true,
+                            text: 'MB/s'
+                        }
+                    },
+                    x: {
+                        grid: {
+                            display: false
+                        }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        position: 'bottom'
+                    },
+                    tooltip: {
+                        mode: 'index',
+                        intersect: false
+                    }
+                }
+            }
+        });
+    }
+
+    // Initialize Storage Utilization Chart
+    const storageCtx = document.getElementById('storageUtilizationChart');
+    if (storageCtx) {
+        storageUtilizationChart = new Chart(storageCtx.getContext('2d'), {
+            type: 'doughnut',
+            data: {
+                labels: ['Used Space', 'Available Space'],
+                datasets: [{
+                    data: [0, 100],
+                    backgroundColor: [
+                        'rgb(59, 130, 246)',
+                        'rgb(229, 231, 235)'
+                    ]
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                cutout: '75%',
+                plugins: {
+                    legend: {
+                        position: 'bottom'
+                    }
+                }
+            }
+        });
+    }
+
+    // Initialize Access Pattern Chart
+    const accessCtx = document.getElementById('accessPatternChart');
+    if (accessCtx) {
+        accessPatternChart = new Chart(accessCtx.getContext('2d'), {
+            type: 'line',
+            data: {
+                labels: ['12am', '3am', '6am', '9am', '12pm', '3pm', '6pm', '9pm'],
+                datasets: [{
+                    label: 'Read Operations',
+                    data: [65, 59, 80, 81, 56, 55, 40, 70],
+                    borderColor: 'rgb(59, 130, 246)',
+                    tension: 0.4
+                }, {
+                    label: 'Write Operations',
+                    data: [28, 48, 40, 19, 86, 27, 90, 50],
+                    borderColor: 'rgb(34, 197, 94)',
+                    tension: 0.4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false
+            }
+        });
+    }
+}
+
+    alertManager = new AlertManager();
+    setupEventHandlers();
+
+    // Add alert checking to performance metrics update
+    const originalUpdateMetrics = updateMetricsCards;
+    updateMetricsCards = function(metrics) {
+        originalUpdateMetrics(metrics);
+        alertManager.checkMetrics(metrics);
+    };
+
+    initializeCharts();
+    initializePerformanceMonitoring();
+    initializeAdvancedFeatures();
+    fetchVolumeDetails();
+
+    initializePerformanceMonitoring();
+    initializeAdvancedFeatures();
+
+
+});
+
+</script>
+
+</body>
+</html>

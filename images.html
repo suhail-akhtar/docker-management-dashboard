@@ -1,0 +1,1511 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Docker Images Dashboard</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/js/all.min.js"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css" rel="stylesheet">
+    <style>
+        .image-card:hover {
+            transform: translateY(-5px);
+            transition: transform 0.3s ease;
+        }
+        .truncate-text {
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 200px;
+        }
+    </style>
+</head>
+<body class="bg-gray-100">
+    <div class="min-h-screen">
+        <!-- Navigation -->
+        <nav class="bg-white shadow-lg">
+            <div class="max-w-7xl mx-auto px-4">
+                <div class="flex justify-between items-center py-4">
+                    <div class="flex items-center">
+                        <a href="index.html" class="text-gray-500 hover:text-gray-700 mr-4">
+                            <i class="fas fa-arrow-left"></i> Back to Dashboard
+                        </a>
+                        <i class="fab fa-docker text-2xl text-blue-500 mr-2"></i>
+                        <span class="text-xl font-semibold text-gray-800">Images Dashboard</span>
+                    </div>
+                    <div class="flex items-center space-x-4">
+                        <button id="pullImageBtn" class="bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600 transition-colors">
+                            <i class="fas fa-cloud-download-alt mr-2"></i>Pull Image
+                        </button>
+                        <button id="pruneImagesBtn" class="bg-yellow-500 text-white px-4 py-2 rounded-md hover:bg-yellow-600 transition-colors">
+                            <i class="fas fa-broom mr-2"></i>Prune Images
+                        </button>
+                        <button id="removeUnusedBtn" class="bg-red-500 text-white px-4 py-2 rounded-md hover:bg-red-600 transition-colors">
+                            <i class="fas fa-trash-alt mr-2"></i>Remove Unused
+                        </button>
+                        <button id="refreshBtn" class="bg-green-500 text-white px-4 py-2 rounded-md hover:bg-green-600 transition-colors">
+                            <i class="fas fa-sync-alt mr-2"></i>Refresh
+                        </button>
+                        <button id="toggleNotifications" class="bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600 transition-colors relative">
+                            <i class="fas fa-bell mr-2"></i>Notifications
+                            <span id="activeNotificationCount" class="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center hidden">0</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </nav>
+
+        <!-- Main Content -->
+        <div class="max-w-7xl mx-auto px-4 py-8">
+            <!-- Image Stats Overview -->
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                <!-- Total Images -->
+                <div class="bg-white rounded-lg shadow p-6 image-card">
+                    <div class="flex items-center">
+                        <div class="p-3 rounded-full bg-blue-100 mr-4">
+                            <i class="fab fa-docker text-blue-500"></i>
+                        </div>
+                        <div>
+                            <p class="text-gray-500">Total Images</p>
+                            <p class="text-2xl font-semibold" id="totalImages">0</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Used Storage -->
+                <div class="bg-white rounded-lg shadow p-6 image-card">
+                    <div class="flex items-center">
+                        <div class="p-3 rounded-full bg-green-100 mr-4">
+                            <i class="fas fa-database text-green-500"></i>
+                        </div>
+                        <div>
+                            <p class="text-gray-500">Used Storage</p>
+                            <p class="text-2xl font-semibold" id="usedStorage">0 GB</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Shared Storage -->
+                <div class="bg-white rounded-lg shadow p-6 image-card">
+                    <div class="flex items-center">
+                        <div class="p-3 rounded-full bg-purple-100 mr-4">
+                            <i class="fas fa-share-alt text-purple-500"></i>
+                        </div>
+                        <div>
+                            <p class="text-gray-500">Shared Storage</p>
+                            <p class="text-2xl font-semibold" id="sharedStorage">0 GB</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Unique Storage -->
+                <div class="bg-white rounded-lg shadow p-6 image-card">
+                    <div class="flex items-center">
+                        <div class="p-3 rounded-full bg-yellow-100 mr-4">
+                            <i class="fas fa-fingerprint text-yellow-500"></i>
+                        </div>
+                        <div>
+                            <p class="text-gray-500">Unique Storage</p>
+                            <p class="text-2xl font-semibold" id="uniqueStorage">0 GB</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Search and Filter Bar -->
+            <div class="bg-white rounded-lg shadow mb-8">
+                <div class="p-6">
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                        <!-- Local Search -->
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Local Search</label>
+                            <div class="relative">
+                                <input type="text" id="localSearch" placeholder="Search local images..."
+                                    class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                                <div class="absolute inset-y-0 right-0 pr-3 flex items-center">
+                                    <i class="fas fa-search text-gray-400"></i>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Online Search -->
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Search Docker Hub</label>
+                            <div class="relative">
+                                <input type="text" id="onlineSearch" placeholder="Search Docker Hub..."
+                                    class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                                <div class="absolute inset-y-0 right-0 pr-3 flex items-center">
+                                    <i class="fas fa-cloud text-gray-400"></i>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Filter -->
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Filter By</label>
+                            <select id="imageFilter" class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                                <option value="all">All Images</option>
+                                <option value="inUse">In Use</option>
+                                <option value="unused">Unused</option>
+                                <option value="dangling">Dangling</option>
+                            </select>
+                        </div>
+
+                        <!-- Sort -->
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Sort By</label>
+                            <select id="imageSort" class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                                <option value="created">Created Date</option>
+                                <option value="size">Size</option>
+                                <option value="name">Repository Name</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Images List -->
+            <div class="bg-white rounded-lg shadow mb-8">
+                <div class="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
+                    <h2 class="text-lg font-semibold text-gray-800">Docker Images</h2>
+                    <div class="flex items-center space-x-2">
+                        <span class="text-sm text-gray-500" id="imageCount">0 images</span>
+                    </div>
+                </div>
+                <div class="p-6">
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full divide-y divide-gray-200">
+                            <thead>
+                                <tr>
+                                    <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Repository/Tag</th>
+                                    <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Image ID</th>
+                                    <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Created</th>
+                                    <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Size</th>
+                                    <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Usage</th>
+                                    <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                                    <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody class="bg-white divide-y divide-gray-200" id="imagesList">
+                                <!-- Image rows will be inserted here via JavaScript -->
+                            </tbody>
+                        </table>
+                    </div>
+                    <!-- Pagination -->
+                    <div class="mt-4 flex items-center justify-between">
+                        <div class="flex items-center">
+                            <select id="pageSize" class="mr-4 px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                                <option value="10">10 per page</option>
+                                <option value="20">20 per page</option>
+                                <option value="50">50 per page</option>
+                                <option value="100">100 per page</option>
+                            </select>
+                            <span class="text-sm text-gray-500" id="paginationInfo">
+                                Showing <span id="showingFrom">0</span> to <span id="showingTo">0</span> of <span id="totalItems">0</span> images
+                            </span>
+                        </div>
+                        <div class="flex items-center space-x-2">
+                            <button id="prevPage" class="px-3 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50">
+                                Previous
+                            </button>
+                            <div id="pageNumbers" class="flex space-x-2">
+                                <!-- Page numbers will be inserted here -->
+                            </div>
+                            <button id="nextPage" class="px-3 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50">
+                                Next
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Online Search Results Modal -->
+    <div id="onlineSearchModal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full">
+        <div class="relative top-20 mx-auto p-5 border w-3/4 shadow-lg rounded-md bg-white">
+            <div class="flex justify-between items-center pb-3">
+                <h3 class="text-xl font-semibold">Docker Hub Search Results</h3>
+                <button id="closeOnlineSearchModal" class="text-gray-400 hover:text-gray-500">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="mt-4">
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead>
+                            <tr>
+                                <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase">Name</th>
+                                <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase">Description</th>
+                                <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase">Stars</th>
+                                <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase">Official</th>
+                                <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase">Automated</th>
+                                <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="onlineSearchResults" class="bg-white divide-y divide-gray-200">
+                            <!-- Search results will be inserted here -->
+                        </tbody>
+                    </table>
+                </div>
+                <div class="mt-4 flex justify-between items-center">
+                    <span class="text-sm text-gray-500" id="onlineSearchCount"></span>
+                    <div class="flex space-x-2">
+                        <button id="prevOnlineResults" class="px-3 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50">
+                            Previous
+                        </button>
+                        <button id="nextOnlineResults" class="px-3 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50">
+                            Next
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="notificationPanel" class="hidden fixed right-4 top-20 w-96 max-h-[80vh] bg-white rounded-lg shadow-xl overflow-hidden z-50">
+        <div class="bg-gray-100 px-4 py-3 border-b flex justify-between items-center">
+            <h3 class="text-lg font-semibold text-gray-800">Notifications</h3>
+            <button id="minimizeNotifications" class="text-gray-500 hover:text-gray-700">
+                <i class="fas fa-minus"></i>
+            </button>
+        </div>
+        <div id="notificationContainer" class="overflow-y-auto max-h-[calc(80vh-4rem)] p-4 space-y-4">
+            <!-- Notifications will be inserted here -->
+        </div>
+    </div>
+
+    <!-- Background Tasks Modal -->
+    <div id="backgroundTasksModal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full">
+        <div class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+            <div class="flex justify-between items-center pb-3">
+                <h3 class="text-xl font-semibold">Background Tasks</h3>
+                <button id="closeBackgroundTasksModal" class="text-gray-400 hover:text-gray-500">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="mt-4">
+                <div id="backgroundTasksList" class="space-y-4">
+                    <!-- Background tasks will be inserted here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading Spinner -->
+    <div id="loadingSpinner" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full">
+        <div class="relative top-20 mx-auto p-5 border w-32 shadow-lg rounded-md bg-white">
+            <div class="flex justify-center">
+                <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Pull Image Modal -->
+    <div id="pullImageModal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full">
+        <div class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+            <div class="flex justify-between items-center pb-3">
+                <h3 class="text-xl font-semibold">Pull Docker Image</h3>
+                <button id="closePullImageModal" class="text-gray-400 hover:text-gray-500">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <form id="pullImageForm" class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">Registry</label>
+                    <select id="imageRegistry" class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 rounded-md">
+                        <option value="docker.io">Docker Hub</option>
+                        <option value="ghcr.io">GitHub Container Registry</option>
+                        <option value="custom">Custom Registry</option>
+                    </select>
+                </div>
+                <div id="customRegistryInput" class="hidden">
+                    <label class="block text-sm font-medium text-gray-700">Custom Registry URL</label>
+                    <input type="text" id="customRegistry" placeholder="e.g., registry.example.com"
+                        class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">Image Name</label>
+                    <input type="text" id="imageName" required placeholder="e.g., nginx"
+                        class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">Tag</label>
+                    <input type="text" id="imageTag" placeholder="e.g., latest"
+                        class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                </div>
+                <div>
+                    <label class="flex items-center">
+                        <input type="checkbox" id="requireAuth" class="form-checkbox h-4 w-4 text-blue-600">
+                        <span class="ml-2 text-sm text-gray-600">Requires Authentication</span>
+                    </label>
+                </div>
+                <div id="authFields" class="hidden space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Username</label>
+                        <input type="text" id="registryUsername"
+                            class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Password</label>
+                        <input type="password" id="registryPassword"
+                            class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                </div>
+                <div class="pt-4">
+                    <button type="submit" class="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                        <i class="fas fa-cloud-download-alt mr-2"></i>Pull Image
+                    </button>
+                </div>
+            </form>
+            <div id="pullProgress" class="hidden mt-4">
+                <div class="w-full bg-gray-200 rounded-full h-2.5">
+                    <div id="pullProgressBar" class="bg-blue-600 h-2.5 rounded-full" style="width: 0%"></div>
+                </div>
+                <p id="pullStatus" class="mt-2 text-sm text-gray-600"></p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Prune Images Confirmation Modal -->
+    <div id="pruneModal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full">
+        <div class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+            <div class="mt-3 text-center">
+                <div class="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-yellow-100">
+                    <i class="fas fa-exclamation-triangle text-yellow-600"></i>
+                </div>
+                <h3 class="text-lg leading-6 font-medium text-gray-900 mt-4">Prune Docker Images</h3>
+                <div class="mt-2 px-7 py-3">
+                    <p class="text-sm text-gray-500">
+                        This will remove all unused images. This operation cannot be undone.
+                    </p>
+                    <div class="mt-4 bg-gray-50 p-3 rounded-lg">
+                        <p class="text-sm font-medium text-gray-700">Space to be freed:</p>
+                        <p id="spaceToFree" class="text-lg font-semibold text-blue-600">Calculating...</p>
+                    </div>
+                </div>
+                <div class="flex justify-center mt-4 space-x-4">
+                    <button id="cancelPrune" class="px-4 py-2 bg-gray-500 text-white text-base font-medium rounded-md shadow-sm hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-gray-300">
+                        Cancel
+                    </button>
+                    <button id="confirmPrune" class="px-4 py-2 bg-red-500 text-white text-base font-medium rounded-md shadow-sm hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-red-300">
+                        Prune Images
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Remove Unused Images Confirmation Modal -->
+    <div id="removeUnusedModal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full">
+        <div class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+            <div class="mt-3 text-center">
+                <div class="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-red-100">
+                    <i class="fas fa-trash-alt text-red-600"></i>
+                </div>
+                <h3 class="text-lg leading-6 font-medium text-gray-900 mt-4">Remove Unused Images</h3>
+                <div class="mt-2 px-7 py-3">
+                    <p class="text-sm text-gray-500">
+                        This will remove all images not used by any containers. This operation cannot be undone.
+                    </p>
+                    <div class="mt-4 bg-gray-50 p-3 rounded-lg">
+                        <p class="text-sm font-medium text-gray-700">Images to be removed:</p>
+                        <p id="imagesToRemove" class="text-lg font-semibold text-red-600">Calculating...</p>
+                    </div>
+                </div>
+                <div class="flex justify-center mt-4 space-x-4">
+                    <button id="cancelRemoveUnused" class="px-4 py-2 bg-gray-500 text-white text-base font-medium rounded-md shadow-sm hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-gray-300">
+                        Cancel
+                    </button>
+                    <button id="confirmRemoveUnused" class="px-4 py-2 bg-red-500 text-white text-base font-medium rounded-md shadow-sm hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-red-300">
+                        Remove Images
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Notification Container -->
+    <div id="notificationContainer" class="fixed top-4 right-4 z-50 space-y-2">
+        <!-- Notifications will be dynamically inserted here -->
+    </div>
+
+    <script>
+$(document).ready(function() {
+    const API_BASE_URL = 'http://172.22.106.116:2370';
+    const DOCKER_HUB_API = 'https://hub.docker.com/v2';
+    let imagesData = [];
+    let filteredImages = [];
+    let currentPage = 1;
+    let pageSize = parseInt($('#pageSize').val());
+    let backgroundTasks = new Map();
+    let onlineSearchTimeout;
+    let onlineSearchPage = 1;
+
+      // Track active pulls and panel state
+    const activePulls = new Map();
+    let pullIdCounter = 0;
+    let isPanelVisible = false;
+
+    // Format bytes to human readable format
+    function formatBytes(bytes) {
+        if (bytes === 0) return '0 B';
+        const k = 1024;
+        const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    }
+
+    // Format timestamp to relative time
+    function formatTimestamp(timestamp) {
+        const now = new Date();
+        const date = new Date(timestamp * 1000);
+        const seconds = Math.floor((now - date) / 1000);
+
+        if (seconds < 60) return 'Just now';
+        const minutes = Math.floor(seconds / 60);
+        if (minutes < 60) return `${minutes}m ago`;
+        const hours = Math.floor(minutes / 60);
+        if (hours < 24) return `${hours}h ago`;
+        const days = Math.floor(hours / 24);
+        if (days < 30) return `${days}d ago`;
+        const months = Math.floor(days / 30);
+        if (months < 12) return `${months}mo ago`;
+        return `${Math.floor(months / 12)}y ago`;
+    }
+
+    // Show notification
+    function showNotification(message, type = 'success') {
+        const colors = {
+            success: 'bg-green-100 border-green-500 text-green-700',
+            error: 'bg-red-100 border-red-500 text-red-700',
+            warning: 'bg-yellow-100 border-yellow-500 text-yellow-700',
+            info: 'bg-blue-100 border-blue-500 text-blue-700'
+        };
+
+        const html = `
+            <div class="p-4 rounded-md shadow-lg border-l-4 ${colors[type]} notification">
+                <div class="flex items-center">
+                    <div class="flex-shrink-0">
+                        ${type === 'success' ? '<i class="fas fa-check-circle"></i>' :
+                          type === 'error' ? '<i class="fas fa-exclamation-circle"></i>' :
+                          type === 'warning' ? '<i class="fas fa-exclamation-triangle"></i>' :
+                          '<i class="fas fa-info-circle"></i>'}
+                    </div>
+                    <div class="ml-3">
+                        <p class="text-sm">${message}</p>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        const notification = $(html).appendTo('#notificationContainer');
+        setTimeout(() => {
+            notification.fadeOut('slow', function() { $(this).remove(); });
+        }, 3000);
+    }
+
+    // Update notification count badge
+    function updateNotificationCount() {
+        const count = activePulls.size;
+        const countElement = $('#activeNotificationCount');
+        
+        if (count > 0) {
+            countElement.text(count).removeClass('hidden');
+        } else {
+            countElement.addClass('hidden');
+        }
+
+        // If no active pulls, hide the panel
+        if (count === 0 && isPanelVisible) {
+            $('#notificationPanel').fadeOut('fast');
+            isPanelVisible = false;
+        }
+    }
+
+    // Fetch and display images
+    async function fetchImages() {
+        try {
+            $('#loadingSpinner').removeClass('hidden');
+            
+            const [images, containers] = await Promise.all([
+                $.get(`${API_BASE_URL}/images/json`),
+                $.get(`${API_BASE_URL}/containers/json?all=true`)
+            ]);
+
+            imagesData = images;
+            updateImagesStats(images);
+            updateImagesList(images, containers);
+        } catch (error) {
+            console.error('Error fetching images:', error);
+            showNotification('Failed to fetch images', 'error');
+        } finally {
+            $('#loadingSpinner').addClass('hidden');
+        }
+    }
+
+    // Update images statistics
+    function updateImagesStats(images) {
+        let totalSize = 0;
+        let sharedSize = 0;
+        let uniqueSize = 0;
+
+        images.forEach(image => {
+            totalSize += image.Size || 0;
+            sharedSize += image.SharedSize || 0;
+            uniqueSize += Math.max(0, (image.Size || 0) - (image.SharedSize || 0));
+        });
+
+        $('#totalImages').text(images.length);
+        $('#usedStorage').text(formatBytes(totalSize));
+        $('#sharedStorage').text(formatBytes(sharedSize));
+        $('#uniqueStorage').text(formatBytes(uniqueSize));
+    }
+
+    // Update images list
+    function updateImagesList(images, containers) {
+        const imagesList = $('#imagesList').empty();
+
+        images.forEach(image => {
+            const imageId = image.Id.split(':')[1].substring(0, 12);
+            const usedByContainers = containers.filter(container => 
+                container.ImageID === image.Id || container.Image === image.RepoTags?.[0]
+            );
+            const status = usedByContainers.length > 0 ? 'In Use' : 'Unused';
+            const statusClass = status === 'In Use' ? 
+                'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800';
+
+            const row = `
+                <tr class="hover:bg-gray-50 image-row cursor-pointer" data-id="${image.Id}">
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <div class="flex flex-col">
+                            ${image.RepoTags ? 
+                                image.RepoTags.map(tag => `
+                                    <span class="text-sm font-medium text-gray-900 truncate-text">${tag}</span>
+                                `).join('') : 
+                                '<span class="text-sm text-gray-500">&lt;none&gt;</span>'
+                            }
+                        </div>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <span class="text-sm text-gray-900">${imageId}</span>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <span class="text-sm text-gray-500">${formatTimestamp(image.Created)}</span>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <span class="text-sm text-gray-500">${formatBytes(image.Size)}</span>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <span class="text-sm text-gray-500">${usedByContainers.length} container${usedByContainers.length !== 1 ? 's' : ''}</span>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${statusClass}">
+                            ${status}
+                        </span>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-2">
+                        <button class="image-action text-blue-600 hover:text-blue-900" data-action="inspect" title="Inspect">
+                            <i class="fas fa-search"></i>
+                        </button>
+                        <button class="image-action text-purple-600 hover:text-purple-900" data-action="history" title="History">
+                            <i class="fas fa-history"></i>
+                        </button>
+                        <button class="image-action text-green-600 hover:text-green-900" data-action="save" title="Save">
+                            <i class="fas fa-download"></i>
+                        </button>
+                        ${status !== 'In Use' ? `
+                            <button class="image-action text-red-600 hover:text-red-900" data-action="remove" title="Remove">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        ` : ''}
+                        <button class="image-action text-gray-600 hover:text-gray-900" data-action="details" title="Details">
+                            <i class="fas fa-info-circle"></i>
+                        </button>
+                    </td>
+                </tr>
+            `;
+            imagesList.append(row);
+        });
+    }
+
+    // Event Handlers
+    $('#refreshBtn').click(function() {
+        const icon = $(this).find('i');
+        icon.addClass('animate-spin');
+        initialize().finally(() => {
+            setTimeout(() => {
+                icon.removeClass('animate-spin');
+            }, 500);
+        });
+    });
+
+    // Pull Image Modal Handlers
+    $('#pullImageBtn').click(() => {
+        $('#pullImageModal').removeClass('hidden');
+        $('#pullProgress').addClass('hidden');
+        $('#pullImageForm')[0].reset();
+    });
+
+    $('#closePullImageModal').click(() => {
+        $('#pullImageModal').addClass('hidden');
+    });
+
+    $('#imageRegistry').change(function() {
+        const isCustom = $(this).val() === 'custom';
+        $('#customRegistryInput').toggleClass('hidden', !isCustom);
+    });
+
+    $('#requireAuth').change(function() {
+        $('#authFields').toggleClass('hidden', !this.checked);
+    });
+
+    // Prune Modal Handlers
+    $('#pruneImagesBtn').click(async () => {
+    try {
+        $('#loadingSpinner').removeClass('hidden');
+        
+        // First, get the dry run result to check space that can be freed
+        const pruneResponse = await $.ajax({
+            url: `${API_BASE_URL}/images/prune`,
+            method: 'POST',
+            data: JSON.stringify({ dangling: false }),
+            contentType: 'application/json',
+            headers: {
+                'X-Registry-Auth': 'null',
+                'Content-Type': 'application/json'
+            }
+        });
+
+        // Calculate space that can be freed
+        const spaceToFree = pruneResponse.SpaceReclaimed || 0;
+        
+        // Show confirmation modal with space details
+        $('#spaceToFree').text(formatBytes(spaceToFree));
+        $('#pruneModal').removeClass('hidden');
+
+    } catch (error) {
+        console.error('Error calculating space to free:', error);
+        showNotification('Failed to calculate space to free: ' + (error.responseText || error.message), 'error');
+    } finally {
+        $('#loadingSpinner').addClass('hidden');
+    }
+});
+
+// Cancel Prune Handler
+    $('#cancelPrune').click(() => {
+        $('#pruneModal').addClass('hidden');
+    });
+
+    // Remove Unused Modal Handlers
+    $('#removeUnusedBtn').click(async () => {
+        try {
+            const unusedImages = imagesData.filter(image => {
+                return !image.Containers || image.Containers === 0;
+            });
+            
+            $('#imagesToRemove').text(unusedImages.length);
+            $('#removeUnusedModal').removeClass('hidden');
+        } catch (error) {
+            console.error('Error counting unused images:', error);
+            showNotification('Failed to count unused images', 'error');
+        }
+    });
+
+    $('#cancelRemoveUnused').click(() => {
+        $('#removeUnusedModal').addClass('hidden');
+    });
+
+    // Pull Image Implementation
+    $('#pullImageForm').submit(async function(e) {
+        e.preventDefault();
+        
+        const registry = $('#imageRegistry').val();
+        const imageName = $('#imageName').val().trim();
+        const imageTag = $('#imageTag').val().trim() || 'latest';
+        const requireAuth = $('#requireAuth').is(':checked');
+        
+        let fullImageName = imageName;
+        if (registry === 'custom') {
+            const customRegistry = $('#customRegistry').val().trim();
+            if (!customRegistry) {
+                showNotification('Custom registry URL is required', 'error');
+                return;
+            }
+            fullImageName = `${customRegistry}/${imageName}`;
+        } else if (registry !== 'docker.io') {
+            fullImageName = `${registry}/${imageName}`;
+        }
+        
+        if (imageTag) {
+            fullImageName += `:${imageTag}`;
+        }
+
+        try {
+            // Show progress elements
+            $('#pullProgress').removeClass('hidden');
+            $('#pullProgressBar').css('width', '0%');
+            $('#pullStatus').text('Initiating pull...');
+
+            // Prepare authentication if required
+            let authConfig = null;
+            if (requireAuth) {
+                const username = $('#registryUsername').val();
+                const password = $('#registryPassword').val();
+                if (!username || !password) {
+                    showNotification('Username and password are required', 'error');
+                    return;
+                }
+                authConfig = {
+                    username: username,
+                    password: password
+                };
+            }
+
+            // Make the pull request
+            const response = await $.ajax({
+                url: `${API_BASE_URL}/images/create?fromImage=${encodeURIComponent(fullImageName)}`,
+                method: 'POST',
+                headers: authConfig ? {
+                    'X-Registry-Auth': btoa(JSON.stringify(authConfig))
+                } : {},
+                xhrFields: {
+                    onprogress: function(e) {
+                        if (e.currentTarget.response) {
+                            const lines = e.currentTarget.response.split('\n');
+                            const lastLine = lines[lines.length - 2]; // Last complete line
+                            if (lastLine) {
+                                try {
+                                    const status = JSON.parse(lastLine);
+                                    if (status.progress) {
+                                        $('#pullStatus').text(`${status.status}: ${status.progress}`);
+                                        // Extract percentage from progress if available
+                                        const match = status.progress.match(/(\d+)%/);
+                                        if (match) {
+                                            $('#pullProgressBar').css('width', match[1] + '%');
+                                        }
+                                    } else {
+                                        $('#pullStatus').text(status.status);
+                                    }
+                                } catch (e) {
+                                    console.warn('Error parsing pull status:', e);
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+
+            showNotification(`Successfully pulled image: ${fullImageName}`, 'success');
+            $('#pullImageModal').addClass('hidden');
+            //await fetchImages(); // Refresh image list
+            await initialize();
+        } catch (error) {
+            console.error('Error pulling image:', error);
+            showNotification(`Failed to pull image: ${error.responseText || error.message}`, 'error');
+        }
+    });
+
+    // Confirm Prune Handler
+    $('#confirmPrune').click(async function() {
+        try {
+            $('#loadingSpinner').removeClass('hidden');
+            $('#pruneModal').addClass('hidden');
+
+            const response = await $.ajax({
+                url: `${API_BASE_URL}/images/prune`,
+                method: 'POST',
+                data: JSON.stringify({ dangling: false }),
+                contentType: 'application/json'
+            });
+
+            const spaceReclaimed = response.SpaceReclaimed || 0;
+            const imagesDeleted = response.ImagesDeleted || [];
+
+            // Show success notification with details
+            showNotification(
+                `Successfully pruned ${imagesDeleted.length} images. Space reclaimed: ${formatBytes(spaceReclaimed)}`, 
+                'success'
+            );
+
+            // Refresh image list
+            //await fetchImages();
+            await initialize();
+
+        } catch (error) {
+            console.error('Error pruning images:', error);
+            showNotification('Failed to prune images: ' + (error.responseText || error.message), 'error');
+        } finally {
+            $('#loadingSpinner').addClass('hidden');
+        }
+    });
+
+    // Remove Unused Images Implementation
+    $('#confirmRemoveUnused').click(async function() {
+        try {
+            $('#loadingSpinner').removeClass('hidden');
+            const unusedImages = imagesData.filter(image => !image.Containers || image.Containers === 0);
+            
+            for (const image of unusedImages) {
+                try {
+                    await $.ajax({
+                        url: `${API_BASE_URL}/images/${image.Id}`,
+                        method: 'DELETE'
+                    });
+                } catch (err) {
+                    console.warn(`Failed to remove image ${image.Id}:`, err);
+                }
+            }
+
+            showNotification('Successfully removed unused images', 'success');
+            $('#removeUnusedModal').addClass('hidden');
+            //await fetchImages(); // Refresh image list
+            await initialize();
+        } catch (error) {
+            console.error('Error removing unused images:', error);
+            showNotification('Failed to remove unused images', 'error');
+        } finally {
+            $('#loadingSpinner').addClass('hidden');
+        }
+    });
+
+
+       // Create or update progress notification
+    function updatePullProgress(pullId, imageName, status, progress) {
+        let notificationId = `pull-progress-${pullId}`;
+        let notificationEl = $(`#${notificationId}`);
+        
+        if (!notificationEl.length) {
+            // Create new notification if doesn't exist
+            const notification = `
+                <div id="${notificationId}" class="notification bg-white border-l-4 border-blue-500 p-4 rounded-lg shadow-md">
+                    <div class="flex justify-between items-start">
+                        <div class="flex-1">
+                            <p class="text-sm font-medium text-gray-900">Pulling: ${imageName}</p>
+                            <p class="text-sm text-gray-600 status-text mt-1"></p>
+                        </div>
+                    </div>
+                    <div class="mt-2 w-full bg-gray-200 rounded-full h-2.5">
+                        <div class="progress-bar bg-blue-600 h-2.5 rounded-full transition-all duration-300" style="width: 0%"></div>
+                    </div>
+                </div>
+            `;
+            $('#notificationContainer').append(notification);
+            notificationEl = $(`#${notificationId}`);
+            
+            // Update notification count
+            updateNotificationCount();
+        }
+
+        // Update progress bar if percentage is available
+        if (progress && progress.includes('%')) {
+            const percentage = progress.match(/(\d+)%/)[1];
+            notificationEl.find('.progress-bar').css('width', `${percentage}%`);
+        }
+
+        // Update status text
+        notificationEl.find('.status-text').text(status);
+
+        // Remove completed notifications after delay
+        if (status.includes('Complete') || status.includes('Downloaded')) {
+            setTimeout(() => {
+                notificationEl.fadeOut('slow', function() { 
+                    $(this).remove();
+                    activePulls.delete(pullId);
+                    updateNotificationCount();
+                });
+            }, 3000);
+        }
+    }
+
+
+     // Enhanced Pull Image Function
+     window.pullImage = async function(imageName) {
+        const pullId = ++pullIdCounter;
+        activePulls.set(pullId, imageName);
+        
+        // Show notification panel when starting a new pull
+        if (!isPanelVisible) {
+            $('#notificationPanel').fadeIn('fast');
+            isPanelVisible = true;
+        }
+
+        try {
+            updatePullProgress(pullId, imageName, 'Starting pull...', '0%');
+            
+            const response = await $.ajax({
+                url: `${API_BASE_URL}/images/create?fromImage=${encodeURIComponent(imageName)}`,
+                method: 'POST',
+                xhr: function() {
+                    const xhr = new window.XMLHttpRequest();
+                    xhr.onprogress = function(e) {
+                        if (xhr.responseText) {
+                            // Get last complete line
+                            const lines = xhr.responseText.split('\n');
+                            const lastLine = lines[lines.length - 2]; // -2 because last line might be incomplete
+                            
+                            if (lastLine) {
+                                try {
+                                    const progress = JSON.parse(lastLine);
+                                    if (progress.status) {
+                                        let statusText = progress.status;
+                                        if (progress.progress) {
+                                            statusText += `: ${progress.progress}`;
+                                        }
+                                        updatePullProgress(pullId, imageName, statusText, progress.progress || null);
+                                    }
+                                } catch (e) {
+                                    // Ignore JSON parse errors from incomplete chunks
+                                }
+                            }
+                        }
+                    };
+                    return xhr;
+                }
+            });
+
+            updatePullProgress(pullId, imageName, 'Pull completed successfully', '100%');
+            //await fetchImages(); // Refresh image list
+            await initialize();
+            
+        } catch (error) {
+            console.error('Error pulling image:', error);
+            updatePullProgress(pullId, imageName, `Error: ${error.responseText || error.message}`, null);
+            activePulls.delete(pullId);
+            updateNotificationCount();
+        }
+    };
+
+
+ // Search Docker Registry Implementation
+ async function searchDockerRegistry(query, page = 1) {
+        if (!query) return;
+        
+        try {
+            $('#loadingSpinner').removeClass('hidden');
+            
+            // First, search through Docker Hub via Docker daemon
+            const searchResponse = await $.ajax({
+                url: `${API_BASE_URL}/images/search`,
+                method: 'GET',
+                data: {
+                    term: query,
+                    limit: 10
+                }
+            });
+
+            $('#onlineSearchResults').empty();
+            
+            // Process and display results
+            searchResponse.forEach(result => {
+                const row = `
+                    <tr class="hover:bg-gray-50">
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <div class="flex flex-col">
+                                <span class="text-sm font-medium text-gray-900">${result.name}</span>
+                                ${result.official ? 
+                                    '<span class="text-xs text-green-600">[Official Image]</span>' : ''}
+                            </div>
+                        </td>
+                        <td class="px-6 py-4">
+                            <span class="text-sm text-gray-500">${result.description || 'No description available'}</span>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-center">
+                            <span class="text-sm text-gray-500">${result.star_count || 0}</span>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
+                                ${result.official ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}">
+                                ${result.official ? 'Official' : 'Community'}
+                            </span>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
+                                ${result.automated ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-800'}">
+                                ${result.automated ? 'Automated' : 'Manual'}
+                            </span>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                            <button class="pull-image-btn bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded-md"
+                                    data-image="${result.name}"
+                                    onclick="pullImage('${result.name}')">
+                                <i class="fas fa-download mr-1"></i>Pull
+                            </button>
+                        </td>
+                    </tr>
+                `;
+                $('#onlineSearchResults').append(row);
+            });
+
+            // Update search results count
+            $('#onlineSearchCount').text(`Found ${searchResponse.length} results for "${query}"`);
+            
+            // Show the modal if hidden
+            $('#onlineSearchModal').removeClass('hidden');
+
+        } catch (error) {
+            console.error('Error searching Docker Registry:', error);
+            showNotification('Failed to search Docker Registry', 'error');
+        } finally {
+            $('#loadingSpinner').addClass('hidden');
+        }
+    }
+
+     // Search Docker Hub Implementation
+     async function searchDockerHub(query, page = 1) {
+        if (!query) return;
+        
+        try {
+            const response = await $.get(`${DOCKER_HUB_API}/search/repositories/?query=${encodeURIComponent(query)}&page=${page}&page_size=10`);
+            
+            $('#onlineSearchResults').empty();
+            response.results.forEach(result => {
+                const row = `
+                    <tr class="hover:bg-gray-50">
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <span class="text-sm font-medium text-gray-900">${result.name}</span>
+                        </td>
+                        <td class="px-6 py-4">
+                            <span class="text-sm text-gray-500">${result.description || 'No description available'}</span>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <span class="text-sm text-gray-500">${result.star_count}</span>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${result.is_official ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}">
+                                ${result.is_official ? 'Official' : 'Unofficial'}
+                            </span>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${result.automated ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-800'}">
+                                ${result.automated ? 'Automated' : 'Manual'}
+                            </span>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                            <button class="pull-image-btn text-blue-600 hover:text-blue-900" data-image="${result.name}">
+                                <i class="fas fa-download mr-1"></i>Pull
+                            </button>
+                        </td>
+                    </tr>
+                `;
+                $('#onlineSearchResults').append(row);
+            });
+
+            $('#onlineSearchCount').text(`Showing ${response.results.length} of ${response.count} results`);
+            
+            // Update pagination buttons
+            $('#prevOnlineResults').prop('disabled', page === 1);
+            $('#nextOnlineResults').prop('disabled', page * 10 >= response.count);
+            onlineSearchPage = page;
+            
+        } catch (error) {
+            console.error('Error searching Docker Hub:', error);
+            showNotification('Failed to search Docker Hub', 'error');
+        }
+    }
+
+    // Local Search Implementation
+    function localSearch(query) {
+        if (!query) {
+            filteredImages = [...imagesData];
+        } else {
+            query = query.toLowerCase();
+            filteredImages = imagesData.filter(image => {
+                const repoTags = image.RepoTags || [];
+                const id = image.Id.toLowerCase();
+                const searchString = [
+                    ...repoTags,
+                    id,
+                    image.ParentId,
+                    ...(image.Labels ? Object.values(image.Labels) : [])
+                ].join(' ').toLowerCase();
+                
+                return searchString.includes(query);
+            });
+        }
+        currentPage = 1; // Reset to first page on new search
+        updatePagination();
+        displayCurrentPage();
+    }
+
+ // Filter Implementation with Enhanced Status Detection
+ function filterImages(filterType) {
+        switch (filterType) {
+            case 'inUse':
+                filteredImages = imagesData.filter(image => {
+                    console.log(image);
+                    // Check both Containers count and if image is referenced by any container
+                    return image.Containers > 0 || image.inUse === true;
+                });
+                break;
+            case 'unused':
+                filteredImages = imagesData.filter(image => {
+                    console.log(image);
+                    // Check both Containers count and ensure image isn't referenced
+                    return (!image.Containers || image.Containers === 0) && !image.inUse;
+                });
+                break;
+            case 'dangling':
+                filteredImages = imagesData.filter(image => {
+                    return !image.RepoTags || image.RepoTags.length === 0 || 
+                           image.RepoTags.every(tag => tag === '<none>:<none>');
+                });
+                break;
+            default:
+                filteredImages = [...imagesData];
+        }
+        currentPage = 1; // Reset to first page on new filter
+        updatePagination();
+        displayCurrentPage();
+    }
+
+ // Enhanced Sort Implementation
+ function sortImages(sortType) {
+        switch (sortType) {
+            case 'created':
+                filteredImages.sort((a, b) => b.Created - a.Created);
+                break;
+            case 'size':
+                filteredImages.sort((a, b) => b.Size - a.Size);
+                break;
+            case 'name':
+                filteredImages.sort((a, b) => {
+                    const nameA = (a.RepoTags && a.RepoTags[0]) || '';
+                    const nameB = (b.RepoTags && b.RepoTags[0]) || '';
+                    // Handle <none>:<none> tags
+                    if (nameA === '<none>:<none>' && nameB !== '<none>:<none>') return 1;
+                    if (nameB === '<none>:<none>' && nameA !== '<none>:<none>') return -1;
+                    return nameA.localeCompare(nameB);
+                });
+                break;
+        }
+        displayCurrentPage();
+    }
+
+    // Pagination Implementation
+    function updatePagination() {
+        const totalPages = Math.ceil(filteredImages.length / pageSize);
+        currentPage = Math.min(currentPage, totalPages);
+        if (currentPage < 1) currentPage = 1;
+
+        // Update pagination info
+        const start = (currentPage - 1) * pageSize + 1;
+        const end = Math.min(currentPage * pageSize, filteredImages.length);
+        $('#showingFrom').text(start);
+        $('#showingTo').text(end);
+        $('#totalItems').text(filteredImages.length);
+
+        // Update page numbers
+        const pageNumbers = $('#pageNumbers').empty();
+        for (let i = 1; i <= totalPages; i++) {
+            if (
+                i === 1 || 
+                i === totalPages || 
+                (i >= currentPage - 2 && i <= currentPage + 2)
+            ) {
+                const btn = $('<button>')
+                    .addClass('px-3 py-2 border border-gray-300 rounded-md text-sm font-medium')
+                    .addClass(i === currentPage ? 'bg-blue-50 text-blue-600' : 'text-gray-700 hover:bg-gray-50')
+                    .text(i)
+                    .click(() => {
+                        currentPage = i;
+                        displayCurrentPage();
+                    });
+                pageNumbers.append(btn);
+            } else if (
+                i === currentPage - 3 || 
+                i === currentPage + 3
+            ) {
+                pageNumbers.append('<span class="px-2">...</span>');
+            }
+        }
+
+        // Update button states
+        $('#prevPage').prop('disabled', currentPage === 1);
+        $('#nextPage').prop('disabled', currentPage === totalPages);
+    }
+
+    function displayCurrentPage() {
+        const start = (currentPage - 1) * pageSize;
+        const end = start + pageSize;
+        const pageImages = filteredImages.slice(start, end);
+        updateImagesList(pageImages, []); // Passing empty array for containers as we'll fetch them separately
+        updatePagination();
+    }
+
+ // Event Handlers
+
+ // Keystrokes if equal greater then 3 then auto start Online image search dialog
+
+//  $('#onlineSearch').on('input', function() {
+//         clearTimeout(onlineSearchTimeout);
+//         const query = $(this).val().trim();
+        
+//         if (query.length >= 3) {
+//             onlineSearchTimeout = setTimeout(() => {
+//                 searchDockerRegistry(query);
+//             }, 500);
+//         }
+//     });
+
+    //When Enter Pressed "Search Docker Hub"
+    $('#onlineSearch').on('keypress', function(e) {
+    if (e.which === 13) { // Enter key pressed
+        clearTimeout(onlineSearchTimeout);
+        const query = $(this).val().trim();
+        
+        if (query.length > 2) {
+            searchDockerRegistry(query);
+        }
+      }
+    });
+
+
+     // Panel Toggle Event Handlers
+     $('#toggleNotifications').click(function() {
+        if (activePulls.size > 0 || isPanelVisible) {
+            isPanelVisible = !isPanelVisible;
+            $('#notificationPanel').fadeToggle('fast');
+        }
+    });
+
+    $('#minimizeNotifications').click(function() {
+        $('#notificationPanel').fadeOut('fast');
+        isPanelVisible = false;
+    });
+
+
+    // Close button click handler
+    $('#closeOnlineSearchModal').click(function() {
+        $('#onlineSearchModal').addClass('hidden');
+    });
+
+    // Close on background click (optional)
+    $('#onlineSearchModal').click(function(e) {
+        if (e.target === this) {
+            $(this).addClass('hidden');
+        }
+    });
+
+    // Close on Escape key (optional)
+    $(document).keydown(function(e) {
+        if (e.key === 'Escape' && !$('#onlineSearchModal').hasClass('hidden')) {
+            $('#onlineSearchModal').addClass('hidden');
+        }
+    });
+
+    // Clear search input when closing modal (optional)
+    $('#closeOnlineSearchModal').click(function() {
+        $('#onlineSearch').val('');
+        $('#onlineSearchModal').addClass('hidden');
+    });
+
+   // Local search handler
+   $('#localSearch').on('input', function() {
+        const query = $(this).val().trim();
+        localSearch(query);
+    });
+
+    // Filter handler
+    $('#imageFilter').change(function() {
+        filterImages($(this).val());
+    });
+
+    // Sort handler
+    $('#imageSort').change(function() {
+        sortImages($(this).val());
+    });
+
+    // Page size handler
+    $('#pageSize').change(function() {
+        pageSize = parseInt($(this).val());
+        currentPage = 1; // Reset to first page when changing page size
+        updatePagination();
+        displayCurrentPage();
+    });
+
+
+    $('#prevPage').click(() => {
+        if (currentPage > 1) {
+            currentPage--;
+            displayCurrentPage();
+        }
+    });
+
+    $('#nextPage').click(() => {
+        const totalPages = Math.ceil(filteredImages.length / pageSize);
+        if (currentPage < totalPages) {
+            currentPage++;
+            displayCurrentPage();
+        }
+    });
+
+    $('#prevOnlineResults').click(() => {
+        if (onlineSearchPage > 1) {
+            searchDockerHub($('#onlineSearch').val().trim(), onlineSearchPage - 1);
+        }
+    });
+
+    $('#nextOnlineResults').click(() => {
+        searchDockerHub($('#onlineSearch').val().trim(), onlineSearchPage + 1);
+    });
+
+
+ // Initialize the enhanced functionality
+ async function initialize() {
+        await fetchImages();
+        filteredImages = [...imagesData];
+        updatePagination();
+        displayCurrentPage();
+    }
+
+    // Start initialization
+    //initialize();
+
+
+    // Image Action Handlers
+    $(document).on('click', '.image-action', async function(e) {
+        e.stopPropagation();
+        const action = $(this).data('action');
+        const imageId = $(this).closest('tr').data('id');
+        const image = imagesData.find(img => img.Id === imageId);
+
+        switch (action) {
+            case 'inspect':
+                try {
+                    const inspectData = await $.get(`${API_BASE_URL}/images/${imageId}/json`);
+                    // Create modal to display inspection data
+                    const inspectJson = JSON.stringify(inspectData, null, 2);
+                    const modal = `
+                        <div class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full" id="inspectModal">
+                            <div class="relative top-20 mx-auto p-5 border w-3/4 shadow-lg rounded-md bg-white">
+                                <div class="flex justify-between items-center pb-3">
+                                    <h3 class="text-xl font-semibold">Image Inspection</h3>
+                                    <button class="text-gray-400 hover:text-gray-500" onclick="document.getElementById('inspectModal').remove();">
+                                        <i class="fas fa-times"></i>
+                                    </button>
+                                </div>
+                                <div class="mt-4">
+                                    <pre class="bg-gray-100 p-4 rounded-lg overflow-x-auto" style="max-height: 60vh;">
+                                        ${inspectJson}
+                                    </pre>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                    $(modal).appendTo('body');
+                } catch (error) {
+                    showNotification('Failed to inspect image', 'error');
+                }
+                break;
+
+            case 'history':
+                try {
+                    const history = await $.get(`${API_BASE_URL}/images/${imageId}/history`);
+                    // Create modal to display history
+                    const historyModal = `
+                        <div class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full" id="historyModal">
+                            <div class="relative top-20 mx-auto p-5 border w-3/4 shadow-lg rounded-md bg-white">
+                                <div class="flex justify-between items-center pb-3">
+                                    <h3 class="text-xl font-semibold">Image History</h3>
+                                    <button class="text-gray-400 hover:text-gray-500" onclick="document.getElementById('historyModal').remove();">
+                                        <i class="fas fa-times"></i>
+                                    </button>
+                                </div>
+                                <div class="mt-4 overflow-x-auto">
+                                    <table class="min-w-full divide-y divide-gray-200">
+                                        <thead>
+                                            <tr>
+                                                <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase">Layer</th>
+                                                <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase">Size</th>
+                                                <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase">Created</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody class="bg-white divide-y divide-gray-200">
+                                            ${history.map(layer => `
+                                                <tr>
+                                                    <td class="px-6 py-4 whitespace-normal">
+                                                        <span class="text-sm text-gray-900">${layer.CreatedBy}</span>
+                                                    </td>
+                                                    <td class="px-6 py-4 whitespace-nowrap">
+                                                        <span class="text-sm text-gray-500">${formatBytes(layer.Size)}</span>
+                                                    </td>
+                                                    <td class="px-6 py-4 whitespace-nowrap">
+                                                        <span class="text-sm text-gray-500">${formatTimestamp(layer.Created)}</span>
+                                                    </td>
+                                                </tr>
+                                            `).join('')}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                    $(historyModal).appendTo('body');
+                } catch (error) {
+                    showNotification('Failed to fetch image history', 'error');
+                }
+                break;
+
+            case 'save':
+                try {
+                    const imageTag = image.RepoTags?.[0] || imageId;
+                    const fileName = `${imageTag.replace(/[\/\:]/g, '_')}.tar`;
+                    
+                    showNotification('Starting image export...', 'info');
+                    
+                    // Create hidden download link
+                    const link = document.createElement('a');
+                    link.href = `${API_BASE_URL}/images/${imageId}/get`;
+                    link.download = fileName;
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                    
+                    showNotification('Image export started', 'success');
+                } catch (error) {
+                    showNotification('Failed to export image', 'error');
+                }
+                break;
+
+            case 'remove':
+                if (confirm('Are you sure you want to remove this image?')) {
+                    try {
+                        await $.ajax({
+                            url: `${API_BASE_URL}/images/${imageId}`,
+                            method: 'DELETE'
+                        });
+                        showNotification('Image removed successfully', 'success');
+                        //await fetchImages(); // Refresh image list
+                        await initialize();
+                    } catch (error) {
+                        showNotification('Failed to remove image', 'error');
+                    }
+                }
+                break;
+
+            case 'details':
+                window.location.href = `image-detail.html?id=${encodeURIComponent(imageId)}`;
+                break;
+        }
+    });
+
+    // Row click handler for details view
+    $(document).on('click', '.image-row', function(e) {
+        if (!$(e.target).closest('.image-action').length) {
+            const imageId = $(this).data('id');
+            window.location.href = `image-detail.html?id=${encodeURIComponent(imageId)}`;
+        }
+    });
+
+    // Initial load
+    //fetchImages();
+
+    initialize();
+    // Set up auto-refresh every 90 seconds
+    setInterval(initialize, 90000);
+});
+    </script>
+</body>
+</html>

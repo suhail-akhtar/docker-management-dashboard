@@ -1,0 +1,1422 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Docker Volume Details</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/js/all.min.js"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css" rel="stylesheet">
+    <style>
+        .stat-card:hover {
+            transform: translateY(-5px);
+            transition: transform 0.3s ease;
+        }
+    </style>
+</head>
+<body class="bg-gray-100">
+    <div class="min-h-screen">
+        <!-- Navigation Bar -->
+        <nav class="bg-white shadow-lg">
+            <div class="max-w-7xl mx-auto px-4">
+                <div class="flex justify-between items-center py-4">
+                    <div class="flex items-center">
+                        <a href="volumes.html" class="text-gray-500 hover:text-gray-700 mr-4">
+                            <i class="fas fa-arrow-left"></i> Back to Volumes
+                        </a>
+                        <i class="fas fa-database text-2xl text-blue-500 mr-2"></i>
+                        <span class="text-xl font-semibold text-gray-800">Volume Details</span>
+                        <span id="volumeName" class="ml-4 text-gray-600"></span>
+                    </div>
+                    <div class="flex items-center space-x-4">
+                        <button id="backupBtn" class="bg-green-500 text-white px-4 py-2 rounded-md hover:bg-green-600 transition-colors">
+                            <i class="fas fa-download mr-2"></i>Backup
+                        </button>
+                        <button id="removeBtn" class="bg-red-500 text-white px-4 py-2 rounded-md hover:bg-red-600 transition-colors">
+                            <i class="fas fa-trash mr-2"></i>Remove
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </nav>
+
+        <!-- Main Content -->
+        <div class="max-w-7xl mx-auto px-4 py-8">
+            <!-- Basic Information Cards -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                <!-- Volume Info Card -->
+                <div class="bg-white rounded-lg shadow-lg p-6 stat-card">
+                    <h2 class="text-lg font-semibold text-gray-800 mb-4">Volume Information</h2>
+                    <div class="space-y-3">
+                        <div class="flex justify-between">
+                            <span class="text-gray-600">Driver:</span>
+                            <span id="volumeDriver" class="font-medium"></span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-gray-600">Created:</span>
+                            <span id="volumeCreated" class="font-medium"></span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-gray-600">Status:</span>
+                            <span id="volumeStatus" class="px-2 py-1 rounded-full text-sm font-semibold"></span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Usage Statistics Card -->
+                <div class="bg-white rounded-lg shadow-lg p-6 stat-card">
+                    <h2 class="text-lg font-semibold text-gray-800 mb-4">Usage Statistics</h2>
+                    <div class="space-y-3">
+                        <div class="flex justify-between">
+                            <span class="text-gray-600">Size:</span>
+                            <span id="volumeSize" class="font-medium"></span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-gray-600">Containers:</span>
+                            <span id="containerCount" class="font-medium"></span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-gray-600">Mount Points:</span>
+                            <span id="mountPoints" class="font-medium"></span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Configuration Card -->
+                <div class="bg-white rounded-lg shadow-lg p-6 stat-card">
+                    <h2 class="text-lg font-semibold text-gray-800 mb-4">Configuration</h2>
+                    <div class="space-y-3">
+                        <div class="flex justify-between">
+                            <span class="text-gray-600">Mount Point:</span>
+                            <span id="volumeMountpoint" class="font-medium truncate" title=""></span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-gray-600">Scope:</span>
+                            <span id="volumeScope" class="font-medium"></span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-gray-600">Labels:</span>
+                            <span id="labelCount" class="font-medium"></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Container Usage Section -->
+            <div class="bg-white rounded-lg shadow-lg mb-8">
+                <div class="px-6 py-4 border-b border-gray-200">
+                    <h2 class="text-lg font-semibold text-gray-800">Connected Containers</h2>
+                </div>
+                <div class="p-6">
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full divide-y divide-gray-200">
+                            <thead>
+                                <tr>
+                                    <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase">Container</th>
+                                    <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase">Mount Path</th>
+                                    <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                                    <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase">Access Mode</th>
+                                    <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="containersList" class="bg-white divide-y divide-gray-200">
+                                <!-- Container rows will be inserted here -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Volume Details Section -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <!-- Labels Section -->
+                <div class="bg-white rounded-lg shadow-lg">
+                    <div class="px-6 py-4 border-b border-gray-200">
+                        <h2 class="text-lg font-semibold text-gray-800">Volume Labels</h2>
+                    </div>
+                    <div class="p-6">
+                        <div id="labelsList" class="space-y-2">
+                            <!-- Labels will be inserted here -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Driver Options Section -->
+                <div class="bg-white rounded-lg shadow-lg">
+                    <div class="px-6 py-4 border-b border-gray-200">
+                        <h2 class="text-lg font-semibold text-gray-800">Driver Options</h2>
+                    </div>
+                    <div class="p-6">
+                        <div id="driverOptionsList" class="space-y-2">
+                            <!-- Driver options will be inserted here -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+
+
+<!-- Add this section after the Volume Details Section in volume-detail.html -->
+<div class="mt-8">
+    <div class="bg-white rounded-lg shadow-lg">
+        <div class="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
+            <h2 class="text-lg font-semibold text-gray-800">Backup History</h2>
+            <div class="flex space-x-2">
+                <span class="text-sm text-gray-500" id="backupCount">0 backups</span>
+                <button id="refreshBackups" class="text-blue-500 hover:text-blue-700">
+                    <i class="fas fa-sync-alt"></i>
+                </button>
+            </div>
+        </div>
+        <div class="p-6">
+            <!-- Backup Stats Cards -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                <div class="bg-gray-50 rounded-lg p-4">
+                    <div class="flex items-center">
+                        <div class="p-3 rounded-full bg-blue-100 mr-4">
+                            <i class="fas fa-archive text-blue-500"></i>
+                        </div>
+                        <div>
+                            <p class="text-gray-500 text-sm">Total Backups</p>
+                            <p class="text-xl font-semibold" id="totalBackupsCount">0</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="bg-gray-50 rounded-lg p-4">
+                    <div class="flex items-center">
+                        <div class="p-3 rounded-full bg-green-100 mr-4">
+                            <i class="fas fa-hdd text-green-500"></i>
+                        </div>
+                        <div>
+                            <p class="text-gray-500 text-sm">Total Size</p>
+                            <p class="text-xl font-semibold" id="totalBackupsSize">0 GB</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="bg-gray-50 rounded-lg p-4">
+                    <div class="flex items-center">
+                        <div class="p-3 rounded-full bg-purple-100 mr-4">
+                            <i class="fas fa-clock text-purple-500"></i>
+                        </div>
+                        <div>
+                            <p class="text-gray-500 text-sm">Last Backup</p>
+                            <p class="text-xl font-semibold" id="lastBackupTime">Never</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Backup List -->
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead>
+                        <tr>
+                            <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Backup Name
+                            </th>
+                            <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Created
+                            </th>
+                            <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Size
+                            </th>
+                            <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Status
+                            </th>
+                            <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Location
+                            </th>
+                            <th class="px-6 py-3 bg-gray-50 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Actions
+                            </th>
+                        </tr>
+                    </thead>
+                    <tbody id="backupsList" class="bg-white divide-y divide-gray-200">
+                        <!-- Backup entries will be inserted here -->
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Empty State -->
+            <div id="noBackupsMessage" class="hidden text-center py-8">
+                <div class="inline-flex items-center justify-center w-16 h-16 rounded-full bg-gray-100 mb-4">
+                    <i class="fas fa-archive text-gray-400 text-2xl"></i>
+                </div>
+                <p class="text-gray-500 text-lg">No backups found</p>
+                <p class="text-gray-400 text-sm mt-2">Click the Backup button above to create your first backup</p>
+            </div>
+
+            <!-- Loading State -->
+            <div id="backupsLoading" class="hidden text-center py-8">
+                <div class="inline-flex items-center justify-center w-16 h-16 rounded-full bg-blue-100 mb-4">
+                    <i class="fas fa-circle-notch fa-spin text-blue-500 text-2xl"></i>
+                </div>
+                <p class="text-gray-500 text-lg">Loading backups...</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Restore Backup Modal -->
+<div id="restoreBackupModal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full">
+    <div class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+        <div class="mt-3">
+            <div class="flex justify-between items-center pb-3">
+                <h3 class="text-lg font-medium text-gray-900">Restore Backup</h3>
+                <button class="modal-close text-gray-400 hover:text-gray-500">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="mt-2 px-7 py-3">
+                <p class="text-sm text-gray-500">
+                    Are you sure you want to restore this backup? This will overwrite the current volume data.
+                </p>
+                <div class="mt-4 bg-yellow-50 p-3 rounded-lg">
+                    <p class="text-sm text-yellow-700">
+                        <i class="fas fa-exclamation-triangle mr-2"></i>
+                        Warning: Any containers using this volume will be stopped during restore.
+                    </p>
+                </div>
+                <div class="backup-details mt-4 bg-gray-50 p-3 rounded-lg">
+                    <!-- Backup details will be inserted here -->
+                </div>
+            </div>
+            <div class="flex justify-end mt-4 space-x-4">
+                <button class="modal-close px-4 py-2 bg-gray-300 text-gray-700 text-base font-medium rounded-md shadow-sm hover:bg-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-300">
+                    Cancel
+                </button>
+                <button id="confirmRestore" class="px-4 py-2 bg-blue-500 text-white text-base font-medium rounded-md shadow-sm hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-300">
+                    Restore
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+    <!-- Delete Backup Modal -->
+    <div id="deleteBackupModal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full">
+        <div class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+            <div class="mt-3">
+                <div class="flex justify-between items-center pb-3">
+                    <h3 class="text-lg font-medium text-gray-900">Delete Backup</h3>
+                    <button class="modal-close text-gray-400 hover:text-gray-500">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                <div class="mt-2 px-7 py-3">
+                    <p class="text-sm text-gray-500">
+                        Are you sure you want to delete this backup? This action cannot be undone.
+                    </p>
+                    <div class="backup-details mt-4 bg-gray-50 p-3 rounded-lg">
+                        <!-- Backup details will be inserted here -->
+                    </div>
+                </div>
+                <div class="flex justify-end mt-4 space-x-4">
+                    <button class="modal-close px-4 py-2 bg-gray-300 text-gray-700 text-base font-medium rounded-md shadow-sm hover:bg-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-300">
+                        Cancel
+                    </button>
+                    <button id="confirmDelete" class="px-4 py-2 bg-red-500 text-white text-base font-medium rounded-md shadow-sm hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-red-300">
+                        Delete
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+        </div>
+    </div>
+
+    <!-- Remove Volume Confirmation Modal -->
+    <div id="removeModal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full">
+        <div class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+            <div class="mt-3 text-center">
+                <div class="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-red-100">
+                    <i class="fas fa-exclamation-triangle text-red-600"></i>
+                </div>
+                <h3 class="text-lg leading-6 font-medium text-gray-900 mt-4">Remove Volume</h3>
+                <div class="mt-2 px-7 py-3">
+                    <p class="text-sm text-gray-500">
+                        Are you sure you want to remove this volume? This action cannot be undone.
+                    </p>
+                    <div id="volumeUsageWarning" class="mt-4 bg-red-50 p-3 rounded-lg hidden">
+                        <p class="text-sm text-red-600">
+                            Warning: This volume is currently in use by containers.
+                        </p>
+                    </div>
+                </div>
+                <div class="items-center px-4 py-3">
+                    <button id="cancelRemove" class="px-4 py-2 bg-gray-500 text-white text-base font-medium rounded-md shadow-sm hover:bg-gray-600 mr-2">
+                        Cancel
+                    </button>
+                    <button id="confirmRemove" class="px-4 py-2 bg-red-500 text-white text-base font-medium rounded-md shadow-sm hover:bg-red-600">
+                        Remove
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Backup Volume Modal -->
+    <div id="backupModal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full">
+        <div class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+            <div class="mt-3">
+                <div class="flex justify-between items-center pb-3">
+                    <h3 class="text-lg font-medium text-gray-900">Backup Volume</h3>
+                    <button id="closeBackupModal" class="text-gray-400 hover:text-gray-500">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                <div class="mt-2">
+                    <form id="backupForm" class="space-y-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">Backup Name</label>
+                            <input type="text" id="backupName" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">Destination</label>
+                            <select id="backupDestination" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                                <option value="local">Local</option>
+                                <option value="remote">Remote Registry</option>
+                            </select>
+                        </div>
+                        <div class="pt-4">
+                            <button type="submit" class="w-full px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                Start Backup
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Notification Container -->
+    <div id="notificationContainer" class="fixed top-4 right-4 z-50 space-y-2">
+        <!-- Notifications will be dynamically inserted here -->
+    </div>
+
+
+    
+
+<script>
+
+// Core functionality for volume-detail.html
+$(document).ready(function() {
+    // Configuration
+    const API_BASE_URL = 'http://172.22.106.116:2370';
+    const REFRESH_INTERVAL = 30000; // 30 seconds
+    
+    // State Management
+    let volumeData = null;
+    let connectedContainers = [];
+    let isLoading = false;
+
+    // Utility Functions
+    function formatBytes(bytes) {
+        if (bytes === 0) return '0 B';
+        const k = 1024;
+        const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    }
+
+    function formatTimestamp(timestamp) {
+        const date = new Date(timestamp);
+        return new Intl.RelativeTimeFormat('en', { numeric: 'auto' }).format(
+            Math.floor((date - new Date()) / (1000 * 60 * 60 * 24)), 'day'
+        );
+    }
+
+    function getVolumeStatus(volume) {
+        if (!volume) return { text: 'Unknown', class: 'bg-gray-100 text-gray-800' };
+        
+        if (connectedContainers.length > 0) {
+            return { text: 'In Use', class: 'bg-green-100 text-green-800' };
+        }
+        
+        if (volume.Labels && Object.keys(volume.Labels).length > 0) {
+            return { text: 'Configured', class: 'bg-blue-100 text-blue-800' };
+        }
+        
+        return { text: 'Available', class: 'bg-yellow-100 text-yellow-800' };
+    }
+
+    // Data Fetching
+    async function fetchVolumeDetails() {
+        try {
+            const volumeName = new URLSearchParams(window.location.search).get('name');
+            if (!volumeName) {
+                throw new Error('Volume name not provided');
+            }
+
+            isLoading = true;
+            
+            // Fetch volume details and connected containers in parallel
+            const [volumeResponse, containersResponse] = await Promise.all([
+                $.get(`${API_BASE_URL}/volumes/${volumeName}`),
+                $.get(`${API_BASE_URL}/containers/json?all=true`)
+            ]);
+
+            volumeData = volumeResponse;
+            
+            // Filter containers using this volume
+            connectedContainers = containersResponse.filter(container => {
+                return container.Mounts.some(mount => 
+                    mount.Type === 'volume' && 
+                    mount.Name === volumeName
+                );
+            });
+
+            updateUI();
+
+        } catch (error) {
+            showNotification(
+                `Error fetching volume details: ${error.message}`, 
+                'error'
+            );
+        } finally {
+            isLoading = false;
+        }
+    }
+
+    // UI Updates
+    function updateUI() {
+        if (!volumeData) return;
+
+        // Update basic information
+        $('#volumeName').text(volumeData.Name);
+        $('#volumeDriver').text(volumeData.Driver);
+        $('#volumeCreated').text(formatTimestamp(volumeData.CreatedAt));
+        
+        // Update status
+        const status = getVolumeStatus(volumeData);
+        $('#volumeStatus')
+            .text(status.text)
+            .removeClass()
+            .addClass(`px-2 py-1 rounded-full text-sm font-semibold ${status.class}`);
+
+        // Update usage statistics
+        $('#volumeSize').text(formatBytes(volumeData.UsageData?.Size || 0));
+        $('#containerCount').text(connectedContainers.length);
+        $('#mountPoints').text(connectedContainers.reduce((count, container) => 
+            count + container.Mounts.filter(m => m.Name === volumeData.Name).length, 0
+        ));
+
+        // Update configuration
+        $('#volumeMountpoint')
+            .text(volumeData.Mountpoint)
+            .attr('title', volumeData.Mountpoint);
+        $('#volumeScope').text(volumeData.Scope || 'local');
+        $('#labelCount').text(Object.keys(volumeData.Labels || {}).length);
+
+        // Update labels list
+        const labelsList = $('#labelsList').empty();
+        Object.entries(volumeData.Labels || {}).forEach(([key, value]) => {
+            labelsList.append(`
+                <div class="flex justify-between items-center p-2 bg-gray-50 rounded">
+                    <span class="font-medium text-gray-700">${key}</span>
+                    <span class="text-gray-600">${value}</span>
+                </div>
+            `);
+        });
+
+        // Update driver options list
+        const driverOptionsList = $('#driverOptionsList').empty();
+        Object.entries(volumeData.Options || {}).forEach(([key, value]) => {
+            driverOptionsList.append(`
+                <div class="flex justify-between items-center p-2 bg-gray-50 rounded">
+                    <span class="font-medium text-gray-700">${key}</span>
+                    <span class="text-gray-600">${value}</span>
+                </div>
+            `);
+        });
+
+        // Update containers list
+        updateContainersList();
+    }
+
+    function updateContainersList() {
+        const containersList = $('#containersList').empty();
+        
+        connectedContainers.forEach(container => {
+            const mount = container.Mounts.find(m => m.Name === volumeData.Name);
+            const row = `
+                <tr class="hover:bg-gray-50">
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <div class="flex items-center">
+                            <div class="text-sm font-medium text-gray-900">
+                                ${container.Names[0].replace('/', '')}
+                            </div>
+                        </div>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <div class="text-sm text-gray-500">
+                            ${mount.Destination}
+                        </div>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
+                            ${container.State === 'running' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}">
+                            ${container.State}
+                        </span>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        ${mount.RW ? 'Read/Write' : 'Read Only'}
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                        <button class="text-blue-600 hover:text-blue-900 mr-2" 
+                                onclick="window.location.href='container-detail.html?id=${container.Id}'">
+                            <i class="fas fa-info-circle"></i>
+                        </button>
+                        ${container.State === 'running' ? `
+                            <button class="text-red-600 hover:text-red-900 stop-container" data-id="${container.Id}">
+                                <i class="fas fa-stop"></i>
+                            </button>
+                        ` : `
+                            <button class="text-green-600 hover:text-green-900 start-container" data-id="${container.Id}">
+                                <i class="fas fa-play"></i>
+                            </button>
+                        `}
+                    </td>
+                </tr>
+            `;
+            containersList.append(row);
+        });
+    }
+
+    // Enhanced notification system
+function showNotification(message, type = 'info', duration = 5000) {
+    const icons = {
+        success: '<i class="fas fa-check-circle text-2xl"></i>',
+        error: '<i class="fas fa-exclamation-circle text-2xl"></i>',
+        warning: '<i class="fas fa-exclamation-triangle text-2xl"></i>',
+        info: '<i class="fas fa-info-circle text-2xl"></i>'
+    };
+
+    const colors = {
+        success: 'bg-green-100 border-l-4 border-green-500 text-green-700',
+        error: 'bg-red-100 border-l-4 border-red-500 text-red-700',
+        warning: 'bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700',
+        info: 'bg-blue-100 border-l-4 border-blue-500 text-blue-700'
+    };
+
+    const notification = $(`
+        <div class="notification-toast max-w-xl w-full bg-white shadow-lg rounded-lg pointer-events-auto 
+             ring-1 ring-black ring-opacity-5 overflow-hidden transform transition-all duration-300 
+             opacity-0 translate-y-2 fixed top-4 right-4 z-50">
+            <div class="p-4">
+                <div class="flex items-start">
+                    <div class="flex-shrink-0 pt-0.5">
+                        ${icons[type]}
+                    </div>
+                    <div class="ml-3 w-0 flex-1">
+                        <p class="text-base font-medium text-gray-900">
+                            ${message}
+                        </p>
+                    </div>
+                    <div class="ml-4 flex-shrink-0 flex">
+                        <button class="rounded-md inline-flex text-gray-400 hover:text-gray-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                            <span class="sr-only">Close</span>
+                            <i class="fas fa-times text-xl"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <div class="notification-progress h-1 bg-gray-200">
+                <div class="h-1 transition-all duration-linear" style="width: 100%"></div>
+            </div>
+        </div>
+    `).addClass(colors[type]);
+
+    // Add progress bar color
+    notification.find('.notification-progress div').addClass(colors[type].split(' ')[0]);
+
+    // Add to notification container
+    const container = $('#notificationContainer');
+    container.append(notification);
+
+    // Handle stacking of multiple notifications
+    const existingNotifications = $('.notification-toast').length;
+    if (existingNotifications > 0) {
+        notification.css('top', `${(existingNotifications * 120) + 16}px`);
+    }
+
+    // Animate in
+    setTimeout(() => {
+        notification.removeClass('opacity-0 translate-y-2');
+    }, 10);
+
+    // Progress bar animation
+    const progressBar = notification.find('.notification-progress div');
+    progressBar.css('transition', `width ${duration}ms linear`);
+    setTimeout(() => {
+        progressBar.css('width', '0%');
+    }, 50);
+
+    // Auto remove after duration
+    const timeoutId = setTimeout(() => {
+        removeNotification(notification);
+    }, duration);
+
+    // Store timeout ID
+    notification.data('timeoutId', timeoutId);
+
+    // Close button handler
+    notification.find('button').click(() => {
+        removeNotification(notification);
+    });
+
+    // Pause progress on hover
+    notification.hover(
+        function() {
+            clearTimeout($(this).data('timeoutId'));
+            const progressBar = $(this).find('.notification-progress div');
+            const currentWidth = progressBar.width() / progressBar.parent().width() * 100;
+            progressBar.css({
+                'transition': 'none',
+                'width': `${currentWidth}%`
+            });
+        },
+        function() {
+            const progressBar = $(this).find('.notification-progress div');
+            const currentWidth = progressBar.width() / progressBar.parent().width() * 100;
+            const remainingTime = (duration * currentWidth) / 100;
+
+            progressBar.css({
+                'transition': `width ${remainingTime}ms linear`,
+                'width': '0%'
+            });
+
+            const timeoutId = setTimeout(() => {
+                removeNotification($(this));
+            }, remainingTime);
+            $(this).data('timeoutId', timeoutId);
+        }
+    );
+}
+
+function removeNotification(notification) {
+    clearTimeout(notification.data('timeoutId'));
+    notification.addClass('opacity-0 translate-y-2');
+    
+    setTimeout(() => {
+        notification.remove();
+        // Reposition remaining notifications
+        $('.notification-toast').each(function(index) {
+            $(this).animate({
+                top: `${(index * 120) + 16}px`
+            }, 300);
+        });
+    }, 300);
+}
+
+    // Volume Operations
+    async function removeVolume(force = false) {
+        try {
+            const volumeName = volumeData.Name;
+            
+            if (connectedContainers.length > 0 && !force) {
+                $('#volumeUsageWarning').removeClass('hidden');
+                return;
+            }
+
+            await $.ajax({
+                url: `${API_BASE_URL}/volumes/${volumeName}?force=${force}`,
+                method: 'DELETE'
+            });
+
+            showNotification('Volume removed successfully', 'success');
+            setTimeout(() => {
+                window.location.href = 'volumes.html';
+            }, 1500);
+
+        } catch (error) {
+            showNotification(`Failed to remove volume: ${error.message}`, 'error');
+        }
+    }
+
+// Enhanced backup functionality
+async function backupVolume(options) {
+    try {
+        const volumeName = volumeData.Name;
+        const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+        const backupName = options.backupName || `backup-${timestamp}`;
+        
+        // Create a dedicated backup directory
+        const backupDir = `/docker/backups/${volumeName}`;
+        const backupPath = `${backupDir}/${backupName}.tar.gz`;
+
+        showNotification('Starting volume backup...', 'info');
+
+        // First, ensure backup directory exists
+        const mkdirContainer = await $.ajax({
+            url: `${API_BASE_URL}/containers/create`,
+            method: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify({
+                Image: 'alpine',
+                Cmd: ['mkdir', '-p', backupDir],
+                HostConfig: {
+                    Binds: ['/var/lib/docker/backups:/docker/backups']
+                }
+            })
+        });
+
+        await $.post(`${API_BASE_URL}/containers/${mkdirContainer.Id}/start`);
+        await waitForContainer(mkdirContainer.Id);
+
+        // Create backup container with proper labels
+        const backupContainer = await $.ajax({
+            url: `${API_BASE_URL}/containers/create`,
+            method: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify({
+                Image: 'alpine',
+                Cmd: ['tar', 'czf', backupPath, '-C', '/data', '.'],
+                HostConfig: {
+                    Binds: [
+                        `${volumeName}:/data:ro`,
+                        '/var/lib/docker/backups:/docker/backups'
+                    ]
+                },
+                Labels: {
+                    'com.docker.volume.backup': 'true',
+                    'com.docker.volume.backup.name': backupName,
+                    'com.docker.volume.backup.volume': volumeName,
+                    'com.docker.volume.backup.timestamp': timestamp,
+                    'com.docker.volume.backup.path': backupPath
+                }
+            })
+        });
+
+        // Start the backup container
+        await $.post(`${API_BASE_URL}/containers/${backupContainer.Id}/start`);
+        
+        // Wait for backup to complete
+        await waitForContainer(backupContainer.Id);
+        
+        // Verify backup file exists
+        const verifyContainer = await $.ajax({
+            url: `${API_BASE_URL}/containers/create`,
+            method: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify({
+                Image: 'alpine',
+                Cmd: ['ls', '-lh', backupPath],
+                HostConfig: {
+                    Binds: ['/var/lib/docker/backups:/docker/backups']
+                }
+            })
+        });
+
+        await $.post(`${API_BASE_URL}/containers/${verifyContainer.Id}/start`);
+        const verifyResult = await waitForContainer(verifyContainer.Id);
+
+        if (verifyResult.StatusCode === 0) {
+            showNotification(
+                `Backup completed successfully. Stored at: ${backupPath}`, 
+                'success'
+            );
+            // Refresh backup list
+            await fetchBackups();
+        } else {
+            throw new Error('Backup verification failed');
+        }
+
+    } catch (error) {
+        showNotification(`Backup failed: ${error.message}`, 'error');
+    }
+}
+
+// Helper function to wait for container completion
+async function waitForContainer(containerId) {
+    return new Promise((resolve, reject) => {
+        const checkInterval = setInterval(async () => {
+            try {
+                const containerInfo = await $.get(`${API_BASE_URL}/containers/${containerId}/json`);
+                if (containerInfo.State.Status === 'exited') {
+                    clearInterval(checkInterval);
+                    
+                    // Get container logs for error cases
+                    const logs = await $.get(`${API_BASE_URL}/containers/${containerId}/logs?stdout=1&stderr=1`);
+                    
+                    // Cleanup container
+                    await $.ajax({
+                        url: `${API_BASE_URL}/containers/${containerId}`,
+                        method: 'DELETE'
+                    });
+
+                    resolve({
+                        StatusCode: containerInfo.State.ExitCode,
+                        Logs: logs
+                    });
+                }
+            } catch (error) {
+                clearInterval(checkInterval);
+                reject(error);
+            }
+        }, 1000);
+    });
+}
+
+    // Container Operations
+    async function startContainer(containerId) {
+        try {
+            await $.post(`${API_BASE_URL}/containers/${containerId}/start`);
+            showNotification('Container started successfully', 'success');
+            await fetchVolumeDetails();
+        } catch (error) {
+            showNotification(`Failed to start container: ${error.message}`, 'error');
+        }
+    }
+
+    async function stopContainer(containerId) {
+        try {
+            await $.post(`${API_BASE_URL}/containers/${containerId}/stop`);
+            showNotification('Container stopped successfully', 'success');
+            await fetchVolumeDetails();
+        } catch (error) {
+            showNotification(`Failed to stop container: ${error.message}`, 'error');
+        }
+    }
+
+    // Event Handlers
+    function setupEventHandlers() {
+        // Remove Volume Button
+        $('#removeBtn').click(() => {
+            $('#removeModal').removeClass('hidden');
+        });
+
+        // Remove Volume Modal
+        $('#confirmRemove').click(() => {
+            removeVolume(true);
+            $('#removeModal').addClass('hidden');
+        });
+
+        $('#cancelRemove').click(() => {
+            $('#removeModal').addClass('hidden');
+        });
+
+        // Backup Volume Button
+        $('#backupBtn').click(() => {
+            $('#backupModal').removeClass('hidden');
+        });
+
+        // Close Backup Modal
+        $('#closeBackupModal').click(() => {
+            $('#backupModal').addClass('hidden');
+        });
+
+        // Backup Form Submit
+        $('#backupForm').submit((e) => {
+            e.preventDefault();
+            const options = {
+                backupName: $('#backupName').val(),
+                destination: $('#backupDestination').val()
+            };
+            backupVolume(options);
+            $('#backupModal').addClass('hidden');
+        });
+
+        // Container Actions
+        $(document).on('click', '.start-container', function() {
+            const containerId = $(this).data('id');
+            startContainer(containerId);
+        });
+
+        $(document).on('click', '.stop-container', function() {
+            const containerId = $(this).data('id');
+            stopContainer(containerId);
+        });
+
+        // Close modals when clicking outside
+        $('.modal').click(function(e) {
+            if ($(e.target).hasClass('modal')) {
+                $(this).addClass('hidden');
+            }
+        });
+
+        // Keyboard shortcuts
+        $(document).keydown(function(e) {
+            if (e.key === 'Escape') {
+                $('.modal').addClass('hidden');
+            }
+        });
+    }
+
+    // Initialize
+    function initialize() {
+        fetchVolumeDetails();
+        setInterval(fetchVolumeDetails, REFRESH_INTERVAL);
+    }
+
+
+     // State management for backups
+     let backupsList = [];
+    let currentBackup = null;
+    const BACKUP_LABEL = 'com.docker.volume.backup';
+
+    // Utility Functions
+    // Enhanced date formatting
+function formatBackupDate(date) {
+    if (!(date instanceof Date)) {
+        date = new Date(date);
+    }
+    return new Intl.DateTimeFormat('en-US', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit'
+    }).format(date);
+}
+
+// Enhanced size formatting
+function formatBackupSize(bytes) {
+    if (bytes === 0) return '0 B';
+    const k = 1024;
+    const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+}
+
+// Helper function to clean backup path
+function cleanBackupPath(path) {
+    // Handle paths with Unicode characters
+    if (typeof path === 'string') {
+        // Extract volume name and backup file name
+        const matches = path.match(/backups\/([^/]+)\/([^/]+)$/);
+        if (matches) {
+            const [, volumeName, fileName] = matches;
+            // Clean the path components
+            const cleanVolumeName = volumeName.replace(/[^\x20-\x7E]/g, ''); // Remove non-printable characters
+            const cleanFileName = fileName.replace(/[^\x20-\x7E]/g, '');
+            return `${cleanVolumeName}/${cleanFileName}`;
+        }
+        
+        // Fallback: clean the entire path
+        return path.replace(/[^\x20-\x7E]/g, '')  // Remove non-printable characters
+                  .replace(/^.*backups\//, '')    // Keep only the part after 'backups/'
+                  .replace(/\/{2,}/g, '/');       // Clean up multiple slashes
+    }
+
+    return '';
+}
+    // Fixed backup fetching implementation
+async function fetchBackups() {
+    try {
+        const volumeName = new URLSearchParams(window.location.search).get('name');
+        if (!volumeName) return;
+
+        $('#backupsLoading').removeClass('hidden');
+        $('#backupsList').addClass('hidden');
+        $('#noBackupsMessage').addClass('hidden');
+
+        // List backup files using a better command
+        const lsContainer = await $.ajax({
+            url: `${API_BASE_URL}/containers/create`,
+            method: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify({
+                Image: 'alpine',
+                Cmd: [
+                    'sh', 
+                    '-c', 
+                    `find /docker/backups/${volumeName} -type f -name "*.tar.gz" -exec stat -c "%n|%s|%Y" {} \\;`
+                ],
+                HostConfig: {
+                    Binds: ['/var/lib/docker/backups:/docker/backups']
+                }
+            })
+        });
+
+        await $.post(`${API_BASE_URL}/containers/${lsContainer.Id}/start`);
+        const result = await waitForContainer(lsContainer.Id);
+
+        // Parse backup files information
+        backupsList = [];
+        if (result && result.Logs) {
+            const lines = result.Logs.split('\n').filter(line => line.trim() !== '');
+            
+            backupsList = lines.map(line => {
+                
+                const [filePath, size, timestamp] = line.split('|');
+                const name = filePath.split('/').pop().replace('.tar.gz', '');
+                
+                return {
+                    id: name, // Using name as ID for uniqueness
+                    name: name,
+                    created: new Date(parseInt(timestamp) * 1000), // Convert Unix timestamp to Date
+                    size: parseInt(size),
+                    status: 'completed',
+                    location: 'local',
+                    path: filePath
+                };
+            });
+        }
+
+        // Update UI
+        updateBackupStats();
+        renderBackupsList();
+
+    } catch (error) {
+        console.error('Backup fetch error:', error);
+        showNotification(`Error fetching backups: ${error.message}`, 'error');
+    } finally {
+        $('#backupsLoading').addClass('hidden');
+    }
+}
+
+// Updated backup stats function
+function updateBackupStats() {
+    const totalBackups = backupsList.length;
+    const totalSize = backupsList.reduce((sum, backup) => sum + (backup.size || 0), 0);
+    const lastBackup = backupsList.sort((a, b) => b.created - a.created)[0];
+
+    $('#totalBackupsCount').text(totalBackups);
+    $('#totalBackupsSize').text(formatBackupSize(totalSize));
+    $('#lastBackupTime').text(lastBackup ? formatBackupDate(lastBackup.created) : 'Never');
+    $('#backupCount').text(`${totalBackups} backup${totalBackups !== 1 ? 's' : ''}`);
+}
+ 
+
+
+
+// Updated renderBackupsList function
+function renderBackupsList() {
+    const backupsTable = $('#backupsList').empty();
+
+    if (backupsList.length === 0) {
+        $('#backupsList').addClass('hidden');
+        $('#noBackupsMessage').removeClass('hidden');
+        return;
+    }
+
+    $('#backupsList').removeClass('hidden');
+    $('#noBackupsMessage').addClass('hidden');
+
+    backupsList.forEach(backup => {
+        const cleanPath = cleanBackupPath(backup.path);
+        const row = `
+            <tr class="hover:bg-gray-50 backup-row" data-id="${backup.id}">
+                <td class="px-6 py-4 whitespace-nowrap">
+                    <div class="flex items-center">
+                        <div class="flex-shrink-0 h-10 w-10 flex items-center justify-center rounded-full bg-gray-100">
+                            <i class="fas fa-archive text-gray-500"></i>
+                        </div>
+                        <div class="ml-4">
+                            <div class="text-sm font-medium text-gray-900">${backup.name}</div>
+                            <div class="text-sm text-gray-500">${cleanPath}</div>
+                        </div>
+                    </div>
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap">
+                    <div class="text-sm text-gray-900">${formatBackupDate(backup.created)}</div>
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap">
+                    <div class="text-sm text-gray-900">${formatBackupSize(backup.size)}</div>
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap">
+                    <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
+                        ${backup.status === 'completed' ? 'bg-green-100 text-green-800' : 'bg-blue-100 text-blue-800'}">
+                        ${backup.status}
+                    </span>
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    ${backup.location}
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                    <button class="restore-backup text-blue-600 hover:text-blue-900 mr-3" 
+                            title="Restore Backup"
+                            data-path="${encodeURIComponent(cleanPath)}"
+                            data-backup-name="${backup.name}"
+                            data-volume-name="${volumeData.Name}">
+                        <i class="fas fa-undo"></i>
+                    </button>
+                    <button class="download-backup text-green-600 hover:text-green-900 mr-3" 
+                            title="Download Backup"
+                            data-path="${encodeURIComponent(cleanPath)}">
+                        <i class="fas fa-download"></i>
+                    </button>
+                    <button class="delete-backup text-red-600 hover:text-red-900" 
+                            title="Delete Backup"
+                            data-path="${encodeURIComponent(cleanPath)}">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </td>
+            </tr>
+        `;
+        backupsTable.append(row);
+    });
+}
+
+ // Updated restore backup function
+async function restoreBackup(backupPath) {
+    try {
+        showNotification('Starting backup restoration...', 'info');
+        console.log('Actual Backup Path:',backupPath);
+        const cleanPath = cleanBackupPath(backupPath);
+        console.log('Restoring backup from path:', cleanPath); // Debug log
+        console.log('Volume Name: ',volumeName, ' -> Backup Name: ', backupName);
+        // Create restore container with correct path
+        const restoreContainer = await $.ajax({
+            url: `${API_BASE_URL}/containers/create`,
+            method: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify({
+                Image: 'alpine',
+                Cmd: ['sh', '-c', `cd /volume && tar xzf "/docker/backups/${cleanPath}/${backupName}"`],
+                HostConfig: {
+                    Binds: [
+                        `${volumeName}:/volume`,
+                        '/var/lib/docker/backups:/docker/backups:ro'
+                    ]
+                }
+            })
+        });
+
+        // Start restore process
+        await $.post(`${API_BASE_URL}/containers/${restoreContainer.Id}/start`);
+
+        // Wait for restore to complete
+        const result = await waitForContainer(restoreContainer.Id);
+
+        if (result.StatusCode === 0) {
+            showNotification('Backup restored successfully', 'success');
+        } else {
+            throw new Error(`Restore failed: ${result.Logs}`);
+        }
+
+    } catch (error) {
+        console.error('Restore error:', error);
+        showNotification(`Failed to restore backup: ${error.message}`, 'error');
+    }
+}
+
+// Updated download backup function
+async function downloadBackup(backupPath) {
+    try {
+        showNotification('Preparing backup for download...', 'info');
+        
+        const cleanPath = cleanBackupPath(backupPath);
+        console.log('Downloading backup from path:', cleanPath); // Debug log
+
+        // Create a temporary container to serve the file
+        const serveContainer = await $.ajax({
+            url: `${API_BASE_URL}/containers/create`,
+            method: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify({
+                Image: 'alpine',
+                Cmd: ['cat', `/docker/backups/${cleanPath}`],
+                HostConfig: {
+                    Binds: ['/var/lib/docker/backups:/docker/backups:ro']
+                }
+            })
+        });
+
+        // Start the container
+        await $.post(`${API_BASE_URL}/containers/${serveContainer.Id}/start`);
+
+        // Get container logs (which will be our file content)
+        const response = await $.ajax({
+            url: `${API_BASE_URL}/containers/${serveContainer.Id}/logs?stdout=1&stderr=0&follow=0`,
+            method: 'GET',
+            xhr: function() {
+                var xhr = new XMLHttpRequest();
+                xhr.responseType = 'blob';
+                return xhr;
+            }
+        });
+
+        // Create download link
+        const fileName = cleanPath.split('/').pop();
+        const blob = new Blob([response], { type: 'application/gzip' });
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = fileName;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(url);
+
+        showNotification('Backup download started', 'success');
+
+        // Cleanup container
+        await $.ajax({
+            url: `${API_BASE_URL}/containers/${serveContainer.Id}`,
+            method: 'DELETE',
+            data: { force: true }
+        });
+
+    } catch (error) {
+        console.error('Download error:', error);
+        showNotification(`Failed to download backup: ${error.message}`, 'error');
+    }
+}
+
+
+// Updated delete backup function
+async function deleteBackup(backupPath) {
+    try {
+        showNotification('Deleting backup...', 'info');
+        
+        const cleanPath = cleanBackupPath(backupPath);
+        console.log('Deleting backup at path:', cleanPath); // Debug log
+
+        // Create container to delete the backup file
+        const deleteContainer = await $.ajax({
+            url: `${API_BASE_URL}/containers/create`,
+            method: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify({
+                Image: 'alpine',
+                Cmd: ['rm', '-f', `/docker/backups/${cleanPath}`],
+                HostConfig: {
+                    Binds: ['/var/lib/docker/backups:/docker/backups']
+                }
+            })
+        });
+
+        // Execute deletion
+        await $.post(`${API_BASE_URL}/containers/${deleteContainer.Id}/start`);
+        const result = await waitForContainer(deleteContainer.Id);
+
+        if (result.StatusCode === 0) {
+            showNotification('Backup deleted successfully', 'success');
+            await fetchBackups(); // Refresh the backup list
+        } else {
+            throw new Error(`Delete failed: ${result.Logs}`);
+        }
+
+    } catch (error) {
+        console.error('Delete error:', error);
+        showNotification(`Failed to delete backup: ${error.message}`, 'error');
+    }
+}
+
+    // Event Handlers
+    function setupBackupEventHandlers() {
+        // Refresh backups
+        $('#refreshBackups').click(() => {
+            $(this).addClass('fa-spin');
+            fetchBackups().finally(() => {
+                setTimeout(() => $(this).removeClass('fa-spin'), 500);
+            });
+        });
+
+       // Restore backup
+       $(document).on('click', '.restore-backup', function(e) {
+            e.preventDefault();
+            e.preventDefault();
+            const volumeName = $(this).data('volume-name');
+            const backupName = $(this).data('backup-name');
+            
+            // Update restore modal with backup details
+            const backup = backupsList.find(b => b.name === backupName);
+            if (backup) {
+                $('.backup-details').html(`
+                    <div class="text-sm">
+                        <p class="mb-2"><strong>Backup Name:</strong> ${backupName}</p>
+                        <p class="mb-2"><strong>Created:</strong> ${formatBackupDate(backup.created)}</p>
+                        <p class="mb-2"><strong>Size:</strong> ${formatBackupSize(backup.size)}</p>
+                        <p class="mb-2"><strong>Volume:</strong> ${volumeName}</p>
+                    </div>
+                `);
+            }
+            
+            $('#restoreBackupModal').removeClass('hidden');
+            
+            // Store the backup path for the confirm button
+            $('#confirmRestore')
+            .data('volume-name', volumeName)
+            .data('backup-name', backupName);
+        });
+
+        // Delete backup
+        $(document).on('click', '.delete-backup', function(e) {
+            e.preventDefault();
+            const backupPath = decodeURIComponent($(this).data('path'));
+            const backupName = backupPath.split('/').pop();
+            
+            // Update delete modal with backup details
+            const backup = backupsList.find(b => b.path === backupPath);
+            if (backup) {
+                $('.backup-details').html(`
+                    <div class="text-sm">
+                        <p class="mb-2"><strong>Backup Name:</strong> ${backup.name}</p>
+                        <p class="mb-2"><strong>Created:</strong> ${formatBackupDate(backup.created)}</p>
+                        <p class="mb-2"><strong>Size:</strong> ${formatBackupSize(backup.size)}</p>
+                        <p class="mb-2"><strong>Location:</strong> ${backup.location}</p>
+                    </div>
+                `);
+            }
+            
+            $('#deleteBackupModal').removeClass('hidden');
+            
+            // Store the backup path for the confirm button
+            $('#confirmDelete').data('backup-path', backupPath);
+        });
+
+        // Download backup
+        $(document).on('click', '.download-backup', function(e) {
+            e.preventDefault();
+            const backupPath = decodeURIComponent($(this).data('path'));
+            
+            downloadBackup(backupPath);
+        });
+
+        // Confirm restore
+        $('#confirmRestore').click(function() {
+            const volumeName = $(this).data('volume-name');
+            const backupName = $(this).data('backup-name');
+            const backupPath = decodeURIComponent($(this).data('data-path'));
+            if (volumeName && backupName) {
+                restoreBackup(backupPath);
+                $('#restoreBackupModal').addClass('hidden');
+            } else {
+                showNotification('Invalid backup information', 'error');
+            }
+        });
+
+        // Confirm delete
+        $('#confirmDelete').click(function() {
+            const backupPath = decodeURIComponent($(this).data('path'));
+            if (backupPath) {
+                deleteBackup(backupPath);
+                $('#deleteBackupModal').addClass('hidden');
+            }
+        });
+
+        // Close modals
+        $('.modal-close').click(function() {
+            $(this).closest('.modal').addClass('hidden');
+        });
+
+        // Auto refresh
+        setInterval(fetchBackups, 30000); // Refresh every 30 seconds
+    }
+
+    // Initialize backup functionality
+    function initializeBackups() {
+        setupBackupEventHandlers();
+        fetchBackups();
+    }
+
+  
+    // Start the application
+    initialize();
+     // Initialize event handlers
+     setupEventHandlers();
+       // Start initialization
+    initializeBackups();
+
+});
+
+</script>
+
+</body>
+</html>

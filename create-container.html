@@ -1,0 +1,620 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Create Docker Container</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/js/all.min.js"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css" rel="stylesheet">
+</head>
+<body class="bg-gray-100">
+    <div class="min-h-screen">
+        <!-- Navigation -->
+        <nav class="bg-white shadow-lg">
+            <div class="max-w-7xl mx-auto px-4">
+                <div class="flex justify-between items-center py-4">
+                    <div class="flex items-center">
+                        <a href="index.html" class="text-gray-500 hover:text-gray-700 mr-4">
+                            <i class="fas fa-arrow-left"></i> Back to Dashboard
+                        </a>
+                        <i class="fab fa-docker text-2xl text-blue-500 mr-2"></i>
+                        <span class="text-xl font-semibold text-gray-800">Create Container Instance</span>
+                    </div>
+                </div>
+            </div>
+        </nav>
+
+        <!-- Main Content -->
+        <div class="max-w-7xl mx-auto px-4 py-8">
+            <form id="createContainerForm" class="space-y-8">
+                <!-- Basic Information -->
+                <div class="bg-white shadow rounded-lg p-6">
+                    <h2 class="text-lg font-semibold text-gray-800 mb-4">Basic Information</h2>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Container Name</label>
+                            <input type="text" id="containerName" name="containerName" 
+                                class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                                required>
+                            <p id="nameAvailability" class="mt-1 text-sm"></p>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Description</label>
+                            <input type="text" id="description" name="description" 
+                                class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Image Selection -->
+                <div class="bg-white shadow rounded-lg p-6">
+                    <h2 class="text-lg font-semibold text-gray-800 mb-4">Image Selection</h2>
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Image Source</label>
+                            <div class="flex space-x-4">
+                                <label class="inline-flex items-center">
+                                    <input type="radio" name="imageSource" value="existing" class="form-radio" checked>
+                                    <span class="ml-2">Use Existing Image</span>
+                                </label>
+                                <label class="inline-flex items-center">
+                                    <input type="radio" name="imageSource" value="custom" class="form-radio">
+                                    <span class="ml-2">Custom Image</span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <div id="existingImageSection">
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Select Image</label>
+                            <select id="existingImage" name="existingImage" 
+                                class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                                <option value="">Loading images...</option>
+                            </select>
+                        </div>
+
+                        <div id="customImageSection" class="hidden">
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Image Name</label>
+                            <div class="flex space-x-2">
+                                <input type="text" id="customImage" name="customImage" 
+                                    placeholder="e.g., nginx:latest" 
+                                    class="flex-1 px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                                <button type="button" id="pullImageBtn" 
+                                    class="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                    Pull Image
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Network Configuration -->
+                <div class="bg-white shadow rounded-lg p-6">
+                    <h2 class="text-lg font-semibold text-gray-800 mb-4">Network Configuration</h2>
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Network Type</label>
+                            <div class="flex space-x-4">
+                                <label class="inline-flex items-center">
+                                    <input type="radio" name="networkType" value="existing" class="form-radio" checked>
+                                    <span class="ml-2">Use Existing Network</span>
+                                </label>
+                                <label class="inline-flex items-center">
+                                    <input type="radio" name="networkType" value="new" class="form-radio">
+                                    <span class="ml-2">Create New Network</span>
+                                </label>
+                                <label class="inline-flex items-center">
+                                    <input type="radio" name="networkType" value="default" class="form-radio">
+                                    <span class="ml-2">Use Default Network</span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <div id="existingNetworkSection">
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Select Network</label>
+                            <select id="existingNetwork" name="existingNetwork" 
+                                class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                                <option value="">Loading networks...</option>
+                            </select>
+                        </div>
+
+                        <div id="newNetworkSection" class="hidden space-y-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Network Name</label>
+                                <input type="text" id="newNetworkName" name="newNetworkName" 
+                                    class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Network Driver</label>
+                                <select id="networkDriver" name="networkDriver" 
+                                    class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                                    <option value="bridge">Bridge</option>
+                                    <option value="overlay">Overlay</option>
+                                    <option value="macvlan">Macvlan</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Port Mapping -->
+                <div class="bg-white shadow rounded-lg p-6">
+                    <h2 class="text-lg font-semibold text-gray-800 mb-4">Port Mapping</h2>
+                    <div class="space-y-4">
+                        <div id="portMappings" class="space-y-2">
+                            <!-- Port mapping entries will be added here -->
+                        </div>
+                        <button type="button" id="addPortBtn" 
+                            class="px-4 py-2 bg-gray-500 text-white rounded-md hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-gray-500">
+                            <i class="fas fa-plus mr-2"></i>Add Port Mapping
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Resource Allocation -->
+                <div class="bg-white shadow rounded-lg p-6">
+                    <h2 class="text-lg font-semibold text-gray-800 mb-4">Resource Allocation</h2>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">CPU Shares</label>
+                            <div class="flex items-center space-x-2">
+                                <input type="range" id="cpuShares" name="cpuShares" min="0" max="1024" value="512" 
+                                    class="w-full">
+                                <span id="cpuValue" class="text-sm text-gray-600 w-12">512</span>
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Memory Limit (MB)</label>
+                            <input type="number" id="memoryLimit" name="memoryLimit" min="4" max="16384" value="512"
+                                class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                        </div>
+                        <div>
+                            
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Environment Variables -->
+                <div class="bg-white shadow rounded-lg p-6">
+                    <h2 class="text-lg font-semibold text-gray-800 mb-4">Environment Variables</h2>
+                    <div class="space-y-4">
+                        <div id="envVars" class="space-y-2">
+                            <!-- Environment variable entries will be added here -->
+                        </div>
+                        <button type="button" id="addEnvVarBtn" 
+                            class="px-4 py-2 bg-gray-500 text-white rounded-md hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-gray-500">
+                            <i class="fas fa-plus mr-2"></i>Add Environment Variable
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Submit Button -->
+                <div class="flex justify-end">
+                    <button type="submit" id="createContainerBtn" 
+                        class="px-6 py-3 bg-blue-500 text-white rounded-md hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        Create Container
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Loading Modal -->
+    <div id="loadingModal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full">
+        <div class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+            <div class="flex flex-col items-center">
+                <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mb-4"></div>
+                <h3 class="text-lg font-semibold text-gray-800">Creating Container...</h3>
+                <p class="text-gray-600 mt-2" id="loadingMessage">Please wait while we set up your container.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Error Modal -->
+    <div id="errorModal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full">
+        <div class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+            <div class="flex flex-col items-center">
+                <div class="text-red-500 text-5xl mb-4">
+                    <i class="fas fa-exclamation-circle"></i>
+                </div>
+                <h3 class="text-lg font-semibold text-gray-800">Error</h3>
+                <p class="text-gray-600 mt-2" id="errorMessage"></p>
+                <button id="closeErrorModal" class="mt-4 px-4 py-2 bg-red-500 text-white rounded-md hover:bg-red-600">
+                    Close
+                </button>
+            </div>
+        </div>
+    </div>
+
+    // Add this script section just before the closing </body> tag
+<script>
+$(document).ready(function() {
+    const API_BASE_URL = 'http://172.22.106.116:2370';
+    let existingContainerNames = new Set();
+    let debounceTimer;
+
+    // Initialize port mappings and env vars counters
+    let portMappingCount = 0;
+    let envVarCount = 0;
+
+    $.ajaxSetup({
+        contentType: 'application/json',
+        headers: {
+            'Accept': 'application/json'
+        }
+    });
+
+    // Fetch initial data
+    async function fetchInitialData() {
+        try {
+            const [containers, images, networks] = await Promise.all([
+                $.get(`${API_BASE_URL}/containers/json?all=true`),
+                $.get(`${API_BASE_URL}/images/json`),
+                $.get(`${API_BASE_URL}/networks`)
+            ]);
+
+            // Store existing container names
+            existingContainerNames = new Set(containers.map(c => c.Names[0].replace('/', '')));
+
+            // Populate image dropdown
+            const imageSelect = $('#existingImage').empty();
+            images.forEach(image => {
+                const tags = image.RepoTags || [];
+                tags.forEach(tag => {
+                    imageSelect.append(`<option value="${tag}">${tag}</option>`);
+                });
+            });
+
+            // Populate network dropdown
+            const networkSelect = $('#existingNetwork').empty();
+            networks.forEach(network => {
+                networkSelect.append(`<option value="${network.Id}">${network.Name}</option>`);
+            });
+        } catch (error) {
+            console.error('Error fetching initial data:', error);
+            showError('Failed to load initial data. Please refresh the page.');
+        }
+    }
+
+    // Handle URL query parameters
+    function handleQueryParams() {
+        const urlParams = new URLSearchParams(window.location.search);
+        const imageParam = urlParams.get('image');
+        
+        if (imageParam) {
+            // Decode the URL-encoded image name
+            const decodedImage = decodeURIComponent(imageParam);
+            
+            // Wait for initial data to load before attempting to select the image
+            const checkDropdown = setInterval(() => {
+                const imageSelect = $('#existingImage');
+                const options = imageSelect.find('option');
+                
+                if (options.length > 1) { // More than just the loading option
+                    clearInterval(checkDropdown);
+                    
+                    // Find and select the matching image
+                    const matchingOption = options.filter(function() {
+                        return $(this).val() === decodedImage;
+                    });
+                    
+                    if (matchingOption.length) {
+                        // Select existing image radio button
+                        $('input[name="imageSource"][value="existing"]').prop('checked', true).trigger('change');
+                        // Select the image in dropdown
+                        imageSelect.val(decodedImage);
+                    } else {
+                        // If image not found in existing images, set up for custom image
+                        $('input[name="imageSource"][value="custom"]').prop('checked', true).trigger('change');
+                        $('#customImage').val(decodedImage);
+                    }
+                }
+            }, 100); // Check every 100ms
+        }
+    }
+
+    // Container name availability check
+    $('#containerName').on('input', function() {
+        clearTimeout(debounceTimer);
+        const name = $(this).val();
+        const nameAvailability = $('#nameAvailability');
+
+        debounceTimer = setTimeout(() => {
+            if (name.length === 0) {
+                nameAvailability.text('').removeClass('text-green-600 text-red-600');
+                return;
+            }
+
+            if (!/^[a-zA-Z0-9][a-zA-Z0-9_.-]+$/.test(name)) {
+                nameAvailability.text('Invalid name format. Use alphanumeric characters, dots, and dashes.')
+                    .removeClass('text-green-600').addClass('text-red-600');
+                return;
+            }
+
+            if (existingContainerNames.has(name)) {
+                nameAvailability.text('Container name already exists.')
+                    .removeClass('text-green-600').addClass('text-red-600');
+            } else {
+                nameAvailability.text('Container name available.')
+                    .removeClass('text-red-600').addClass('text-green-600');
+            }
+        }, 500);
+    });
+
+    // Image source radio button handler
+    $('input[name="imageSource"]').change(function() {
+        const source = $(this).val();
+        if (source === 'existing') {
+            $('#existingImageSection').removeClass('hidden');
+            $('#customImageSection').addClass('hidden');
+        } else {
+            $('#existingImageSection').addClass('hidden');
+            $('#customImageSection').removeClass('hidden');
+        }
+    });
+
+    // Network type radio button handler
+    $('input[name="networkType"]').change(function() {
+        const type = $(this).val();
+        $('#existingNetworkSection, #newNetworkSection').addClass('hidden');
+        
+        if (type === 'existing') {
+            $('#existingNetworkSection').removeClass('hidden');
+        } else if (type === 'new') {
+            $('#newNetworkSection').removeClass('hidden');
+        }
+    });
+
+    // Pull image button handler
+    $('#pullImageBtn').click(async function() {
+    const imageName = $('#customImage').val();
+    if (!imageName) {
+        showError('Please enter an image name');
+        return;
+    }
+
+    try {
+        $(this).prop('disabled', true).html('<i class="fas fa-spinner fa-spin mr-2"></i>Pulling...');
+        
+        await $.ajax({
+            url: `${API_BASE_URL}/images/create?fromImage=${imageName}`,
+            method: 'POST',
+            contentType: 'application/json'
+        });
+        
+        showSuccess('Image pulled successfully');
+        
+        // Refresh image list
+        const images = await $.get(`${API_BASE_URL}/images/json`);
+        const imageSelect = $('#existingImage').empty();
+        images.forEach(image => {
+            const tags = image.RepoTags || [];
+            tags.forEach(tag => {
+                imageSelect.append(`<option value="${tag}">${tag}</option>`);
+            });
+        });
+    } catch (error) {
+        console.error('Error pulling image:', error);
+        showError('Failed to pull image. Please check the image name and try again.');
+    } finally {
+        $(this).prop('disabled', false).html('Pull Image');
+    }
+});
+    // Add port mapping entry
+    $('#addPortBtn').click(function() {
+        const portEntry = `
+            <div class="port-mapping flex items-center space-x-2" data-id="${portMappingCount}">
+                <input type="number" name="hostPort[]" placeholder="Host Port"
+                    class="w-1/3 px-3 py-2 border border-gray-300 rounded-md">
+                <span class="text-gray-500">:</span>
+                <input type="number" name="containerPort[]" placeholder="Container Port"
+                    class="w-1/3 px-3 py-2 border border-gray-300 rounded-md">
+                <select name="protocol[]" class="w-1/4 px-3 py-2 border border-gray-300 rounded-md">
+                    <option value="tcp">TCP</option>
+                    <option value="udp">UDP</option>
+                </select>
+                <button type="button" class="remove-port text-red-500 hover:text-red-700">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+        `;
+        $('#portMappings').append(portEntry);
+        portMappingCount++;
+    });
+
+    // Remove port mapping entry
+    $(document).on('click', '.remove-port', function() {
+        $(this).closest('.port-mapping').remove();
+    });
+
+    // Add environment variable entry
+    $('#addEnvVarBtn').click(function() {
+        const envVarEntry = `
+            <div class="env-var flex items-center space-x-2" data-id="${envVarCount}">
+                <input type="text" name="envKey[]" placeholder="Key"
+                    class="w-1/3 px-3 py-2 border border-gray-300 rounded-md">
+                <span class="text-gray-500">=</span>
+                <input type="text" name="envValue[]" placeholder="Value"
+                    class="w-1/2 px-3 py-2 border border-gray-300 rounded-md">
+                <button type="button" class="remove-env text-red-500 hover:text-red-700">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+        `;
+        $('#envVars').append(envVarEntry);
+        envVarCount++;
+    });
+
+    // Remove environment variable entry
+    $(document).on('click', '.remove-env', function() {
+        $(this).closest('.env-var').remove();
+    });
+
+    // CPU slider value update
+    $('#cpuShares').on('input', function() {
+        $('#cpuValue').text($(this).val());
+    });
+
+    // Show error modal
+    function showError(message) {
+        $('#errorMessage').text(message);
+        $('#errorModal').removeClass('hidden');
+    }
+
+    // Show success notification
+    function showSuccess(message) {
+        const successHtml = `
+            <div class="fixed top-4 right-4 bg-green-100 border-l-4 border-green-500 text-green-700 p-4 rounded shadow-lg alert">
+                <p>${message}</p>
+            </div>
+        `;
+        $('body').append(successHtml);
+        setTimeout(() => {
+            $('.alert').fadeOut('slow', function() { $(this).remove(); });
+        }, 3000);
+    }
+
+    // Close error modal
+    $('#closeErrorModal').click(function() {
+        $('#errorModal').addClass('hidden');
+    });
+
+    // Form submission handler
+    $('#createContainerForm').submit(async function(e) {
+    e.preventDefault();
+
+    // Validate container name
+    const containerName = $('#containerName').val();
+    if (existingContainerNames.has(containerName)) {
+        showError('Container name already exists');
+        return;
+    }
+
+    // Show loading modal
+    $('#loadingModal').removeClass('hidden');
+
+    try {
+        // Prepare container creation config
+        const config = {
+            Name: containerName,
+            Image: $('input[name="imageSource"]:checked').val() === 'existing' 
+                ? $('#existingImage').val() 
+                : $('#customImage').val(),
+            Hostname: containerName,
+            Labels: {
+                description: $('#description').val()
+            },
+            HostConfig: {
+                CpuShares: parseInt($('#cpuShares').val()),
+                Memory: parseInt($('#memoryLimit').val()) * 1024 * 1024, // Convert to bytes
+                MemorySwap: -1,
+                RestartPolicy: {
+                    Name: "unless-stopped"
+                }
+            },
+            NetworkingConfig: {
+                EndpointsConfig: {}
+            }
+        };
+
+        // Add port bindings
+        const portBindings = {};
+        const exposedPorts = {};
+        $('.port-mapping').each(function() {
+            const hostPort = $(this).find('input[name="hostPort[]"]').val();
+            const containerPort = $(this).find('input[name="containerPort[]"]').val();
+            const protocol = $(this).find('select[name="protocol[]"]').val();
+            
+            if (hostPort && containerPort) {
+                const portKey = `${containerPort}/${protocol}`;
+                portBindings[portKey] = [{ HostPort: hostPort.toString() }];
+                exposedPorts[portKey] = {};
+            }
+        });
+        config.HostConfig.PortBindings = portBindings;
+        config.ExposedPorts = exposedPorts;
+
+        // Add environment variables
+        const env = [];
+        $('.env-var').each(function() {
+            const key = $(this).find('input[name="envKey[]"]').val();
+            const value = $(this).find('input[name="envValue[]"]').val();
+            if (key && value) {
+                env.push(`${key}=${value}`);
+            }
+        });
+        config.Env = env;
+
+        // Handle network configuration
+        const networkType = $('input[name="networkType"]:checked').val();
+        if (networkType === 'new') {
+            // Create new network first
+            const networkName = $('#newNetworkName').val();
+            const networkDriver = $('#networkDriver').val();
+            
+            const networkResponse = await $.ajax({
+                url: `${API_BASE_URL}/networks/create`,
+                method: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify({
+                    Name: networkName,
+                    Driver: networkDriver
+                })
+            });
+
+            config.NetworkingConfig.EndpointsConfig[networkName] = {
+                NetworkID: networkResponse.Id
+            };
+        } else if (networkType === 'existing') {
+            const networkId = $('#existingNetwork').val();
+            const networkName = $('#existingNetwork option:selected').text();
+            config.NetworkingConfig.EndpointsConfig[networkName] = {
+                NetworkID: networkId
+            };
+        }
+
+        console.log('Container config:', config);
+
+        // Create container
+        const container = await $.ajax({
+            url: `${API_BASE_URL}/containers/create`,
+            method: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify(config)
+        });
+
+        // Start container
+        await $.ajax({
+            url: `${API_BASE_URL}/containers/${container.Id}/start`,
+            method: 'POST',
+            contentType: 'application/json'
+        });
+
+        showSuccess('Container created successfully');
+        setTimeout(() => {
+            window.location.href = 'index.html';
+        }, 2000);
+    } catch (error) {
+        console.error('Error creating container:', error);
+        const errorMessage = error.responseJSON ? error.responseJSON.message : 'Failed to create container. Please check your configuration and try again.';
+        showError(errorMessage);
+    } finally {
+        $('#loadingModal').addClass('hidden');
+    }
+});
+    
+    // fetchInitialData();
+    // handleQueryParams();
+    // $('#addPortBtn').click(); // Add first port mapping by default
+    // $('#addEnvVarBtn').click(); // Add first environment variable by default
+
+    // Initialize
+    fetchInitialData().then(() => {
+        handleQueryParams(); // Handle Query parameter, redirected from image-detail.html
+        $('#addPortBtn').click(); // Add first port mapping by default
+        $('#addEnvVarBtn').click(); // Add first environment variable by default
+    });
+});
+</script>
+</body>
+</html>

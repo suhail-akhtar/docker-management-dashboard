@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Docker Dashboard</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/js/all.min.js"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css" rel="stylesheet">
+    <style>
+        .card-hover:hover {
+            transform: translateY(-5px);
+            transition: transform 0.3s ease;
+        }
+    </style>
+</head>
+<body class="bg-gray-100">
+    <div class="min-h-screen">
+        <!-- Navigation -->
+        <nav class="bg-white shadow-lg">
+            <div class="max-w-7xl mx-auto px-4">
+                <div class="flex justify-between items-center py-4">
+                    <div class="flex items-center">
+                        <i class="fab fa-docker text-2xl text-blue-500 mr-2"></i>
+                        <span class="text-xl font-semibold text-gray-800">Docker Dashboard</span>
+                    </div>
+                    <div class="flex items-center space-x-4">
+                         <!-- Add this new button -->
+                        <a href="create-container.html" class="bg-green-500 text-white px-4 py-2 rounded-md hover:bg-green-600 transition-colors">
+                            <i class="fas fa-plus mr-2"></i>Create Container
+                        </a>
+                        
+                        <!-- Existing refresh button -->
+                        <button id="refreshBtn" class="bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600 transition-colors">
+                            <i class="fas fa-sync-alt mr-2"></i>Refresh
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </nav>
+
+        <!-- Main Content -->
+        <div class="max-w-7xl mx-auto px-4 py-8">
+            <!-- Stats Overview -->
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                <!-- Running Containers -->
+                <div class="bg-white rounded-lg shadow p-6 card-hover">
+                    <div class="flex items-center">
+                        <div class="p-3 rounded-full bg-green-100 mr-4">
+                            <i class="fas fa-play text-green-500"></i>
+                        </div>
+                        <div>
+                            <p class="text-gray-500">Running Containers</p>
+                            <p class="text-2xl font-semibold" id="runningContainers">0</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Stopped Containers -->
+                <div class="bg-white rounded-lg shadow p-6 card-hover">
+                    <div class="flex items-center">
+                        <div class="p-3 rounded-full bg-red-100 mr-4">
+                            <i class="fas fa-stop text-red-500"></i>
+                        </div>
+                        <div>
+                            <p class="text-gray-500">Stopped Containers</p>
+                            <p class="text-2xl font-semibold" id="stoppedContainers">0</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Images -->
+                <div class="bg-white rounded-lg shadow p-6 card-hover cursor-pointer" onclick="window.location='images.html'">
+                    <div class="flex items-center">
+                        <div class="p-3 rounded-full bg-blue-100 mr-4">
+                            <i class="fas fa-clone text-blue-500"></i>
+                        </div>
+                        <div>
+                            <p class="text-gray-500">Images</p>
+                            <p class="text-2xl font-semibold" id="totalImages">0</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Volumes -->
+                <div class="bg-white rounded-lg shadow p-6 card-hover cursor-pointer" onclick="window.location='volumes.html'">
+                    <div class="flex items-center">
+                        <div class="p-3 rounded-full bg-purple-100 mr-4">
+                            <i class="fas fa-database text-purple-500"></i>
+                        </div>
+                        <div>
+                            <p class="text-gray-500">Volumes</p>
+                            <p class="text-2xl font-semibold" id="totalVolumes">0</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Containers List -->
+            <div class="bg-white rounded-lg shadow mb-8">
+                <div class="px-6 py-4 border-b border-gray-200">
+                    <h2 class="text-lg font-semibold text-gray-800">Containers</h2>
+                </div>
+                <div class="p-6">
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full divide-y divide-gray-200">
+                            <thead>
+                                <tr>
+                                    <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
+                                    <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                                    <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Image</th>
+                                    <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ports</th>
+                                    <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody class="bg-white divide-y divide-gray-200" id="containersList">
+                                <!-- Container rows will be inserted here -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Networks and Volumes -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <!-- Networks Section with Paging -->
+                <div class="bg-white rounded-lg shadow">
+                    <div class="px-6 py-4 border-b border-gray-200">
+                        <h2 class="text-lg font-semibold text-gray-800" onclick="window.location='/networks.html'" style="cursor: pointer;">Networks</h2>
+                    </div>
+                    <div class="p-6">
+                        <ul class="divide-y divide-gray-200" id="networksList">
+                            <!-- Network items will be paginated here -->
+                        </ul>
+                        <!-- Pagination Controls -->
+                        <div class="flex justify-between mt-4">
+                            <button id="networksPrev" class="bg-gray-300 text-gray-700 px-4 py-2 rounded" disabled>Previous</button>
+                            <button id="networksNext" class="bg-gray-300 text-gray-700 px-4 py-2 rounded">Next</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Volumes Section with Paging and Wrapped Text -->
+                <div class="bg-white rounded-lg shadow">
+                    <div class="px-6 py-4 border-b border-gray-200">
+                        <h2 class="text-lg font-semibold text-gray-800">Volumes</h2>
+                    </div>
+                    <div class="p-6">
+                        <ul class="divide-y divide-gray-200" id="volumesList">
+                            <!-- Volume items will be paginated here -->
+                        </ul>
+                        <!-- Pagination Controls -->
+                        <div class="flex justify-between mt-4">
+                            <button id="volumesPrev" class="bg-gray-300 text-gray-700 px-4 py-2 rounded" disabled>Previous</button>
+                            <button id="volumesNext" class="bg-gray-300 text-gray-700 px-4 py-2 rounded">Next</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Replace the existing <script> section with this code
+$(document).ready(function() {
+    const API_BASE_URL = 'http://172.22.106.116:2370';
+
+    const ITEMS_PER_PAGE = 5;  // Number of items per page for networks and volumes
+    let networksPage = 0;
+    let volumesPage = 0;
+
+    // Function to format bytes to human readable format
+    function formatBytes(bytes) {
+        if (bytes === 0) return '0 B';
+        const k = 1024;
+        const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    }
+
+    // Function to format container status
+    function formatStatus(status) {
+        return status.includes('Up') ? 'running' : 'stopped';
+    }
+
+    // Function to format container ports
+    function formatPorts(ports) {
+        if (!ports) return 'None';
+        return ports.map(port => {
+            if (port.PublicPort) {
+                return `${port.PublicPort}:${port.PrivatePort}`;
+            }
+            return `${port.PrivatePort}`;
+        }).join(', ');
+    }
+
+    // Fetch all Docker resources
+    async function fetchDockerResources() {
+        try {
+            const [containers, images, volumes, networks] = await Promise.all([
+                $.get(`${API_BASE_URL}/containers/json?all=true`),
+                $.get(`${API_BASE_URL}/images/json`),
+                $.get(`${API_BASE_URL}/volumes`),
+                $.get(`${API_BASE_URL}/networks`)
+            ]);
+            
+            updateDashboard(containers, images, volumes, networks);
+        } catch (error) {
+            console.error('Error fetching Docker resources:', error);
+            showError('Failed to fetch Docker resources. Please check your connection.');
+        }
+    }
+
+    // Show error message
+    function showError(message) {
+        const errorHtml = `
+            <div class="fixed top-4 right-4 bg-red-100 border-l-4 border-red-500 text-red-700 p-4 rounded shadow-lg" role="alert">
+                <p>${message}</p>
+            </div>
+        `;
+        $('body').append(errorHtml);
+        setTimeout(() => {
+            $('.alert').fadeOut('slow', function() { $(this).remove(); });
+        }, 5000);
+    }
+
+    // Update dashboard with real data
+    function updateDashboard(containers, images, volumes, networks) {
+        // Update stats
+        const runningContainers = containers.filter(c => formatStatus(c.Status) === 'running').length;
+        const stoppedContainers = containers.filter(c => formatStatus(c.Status) === 'stopped').length;
+
+        updateNetworksList(networks);
+        updateVolumesList(volumes.Volumes);
+
+        $('#runningContainers').text(runningContainers);
+        $('#stoppedContainers').text(stoppedContainers);
+        $('#totalImages').text(images.length);
+        $('#totalVolumes').text(volumes.Volumes ? volumes.Volumes.length : 0);
+
+      
+// Update containers list
+$('#containersList').empty();
+containers.forEach(container => {
+    const status = formatStatus(container.Status);
+    const statusClass = status === 'running' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800';
+    const row = `
+        <tr data-id="${container.Id}" class="hover:bg-gray-50 cursor-pointer container-row">
+            <td class="px-6 py-4 whitespace-nowrap">
+                <div class="flex items-center">
+                    <div class="font-medium text-gray-900 hover:text-blue-600">
+                        ${container.Names[0].replace('/', '')}
+                        <span class="text-gray-400 text-xs ml-2">${container.Id.slice(0, 12)}</span>
+                    </div>
+                </div>
+            </td>
+            <td class="px-6 py-4 whitespace-nowrap">
+                <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${statusClass}">
+                    ${status}
+                </span>
+            </td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${container.Image}</td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${formatPorts(container.Ports)}</td>
+            <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-2">
+                <button class="container-action text-blue-600 hover:text-blue-900" data-action="details" title="View Details">
+                    <i class="fas fa-info-circle"></i>
+                </button>
+                ${status === 'stopped' ? 
+                    `<button class="container-action text-green-600 hover:text-green-900" data-action="start" title="Start">
+                        <i class="fas fa-play"></i>
+                    </button>` :
+                    `<button class="container-action text-red-600 hover:text-red-900" data-action="stop" title="Stop">
+                        <i class="fas fa-stop"></i>
+                    </button>`
+                }
+                <button class="container-action text-gray-600 hover:text-gray-900" data-action="remove" title="Remove">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </td>
+        </tr>
+    `;
+    $('#containersList').append(row);
+});
+
+function updateNetworksList(networks) {
+        $('#networksList').empty();
+        const start = networksPage * ITEMS_PER_PAGE;
+        const end = start + ITEMS_PER_PAGE;
+        const pageNetworks = networks.slice(start, end);
+
+        pageNetworks.forEach(network => {
+            const item = `
+                <li class="py-4" data-id="${network.Id}">
+                    <div class="flex items-center space-x-4">
+                        <div class="flex-1 min-w-0">
+                            <p class="text-sm font-medium text-gray-900 truncate">${network.Name}</p>
+                            <p class="text-sm text-gray-500">Driver: ${network.Driver} | Scope: ${network.Scope}</p>
+                            <p class="text-sm text-gray-500">Subnet: ${network.IPAM?.Config?.[0]?.Subnet || 'N/A'}</p>
+                        </div>
+                    </div>
+                </li>`;
+            $('#networksList').append(item);
+        });
+
+        $('#networksPrev').prop('disabled', networksPage === 0);
+        $('#networksNext').prop('disabled', end >= networks.length);
+    }
+
+    function updateVolumesList(volumes) {
+        $('#volumesList').empty();
+        const start = volumesPage * ITEMS_PER_PAGE;
+        const end = start + ITEMS_PER_PAGE;
+        const pageVolumes = volumes.slice(start, end);
+
+        pageVolumes.forEach(volume => {
+            const item = `
+                <li class="py-4" data-id="${volume.Name}">
+                    <div class="flex items-center space-x-4">
+                        <div class="flex-1 min-w-0">
+                            <p class="text-sm font-medium text-gray-900 truncate">${volume.Name}</p>
+                            <p class="text-sm text-gray-500">Driver: ${volume.Driver}</p>
+                            <p class="text-sm text-gray-500">Mountpoint: ${volume.Mountpoint}</p>
+                        </div>
+                    </div>
+                </li>`;
+            $('#volumesList').append(item);
+        });
+
+        $('#volumesPrev').prop('disabled', volumesPage === 0);
+        $('#volumesNext').prop('disabled', end >= volumes.length);
+    }
+
+// Add these event handlers after your existing event handlers
+$(document).on('click', '.container-row', function(e) {
+    // Check if the click was on an action button
+    if (!$(e.target).closest('.container-action').length) {
+        const containerId = $(this).data('id');
+        window.location.href = `container-detail.html?id=${containerId}`;
+    }
+});
+
+$(document).on('click', '.container-action[data-action="details"]', function(e) {
+    e.stopPropagation();
+    const containerId = $(this).closest('tr').data('id');
+    window.location.href = `container-detail.html?id=${containerId}`;
+});
+
+        // // Update networks list
+        // $('#networksList').empty();
+        // networks.forEach(network => {
+        //     const item = `
+        //         <li class="py-4" data-id="${network.Id}">
+        //             <div class="flex items-center space-x-4">
+        //                 <div class="flex-1 min-w-0">
+        //                     <p class="text-sm font-medium text-gray-900 truncate">${network.Name}</p>
+        //                     <p class="text-sm text-gray-500">Driver: ${network.Driver} | Scope: ${network.Scope}</p>
+        //                     <p class="text-sm text-gray-500">Subnet: ${network.IPAM?.Config?.[0]?.Subnet || 'N/A'}</p>
+        //                 </div>
+        //             </div>
+        //         </li>
+        //     `;
+        //     $('#networksList').append(item);
+        // });
+
+        // // Update volumes list
+        // $('#volumesList').empty();
+        // if (volumes.Volumes) {
+        //     volumes.Volumes.forEach(volume => {
+        //         const item = `
+        //             <li class="py-4" data-id="${volume.Name}">
+        //                 <div class="flex items-center space-x-4">
+        //                     <div class="flex-1 min-w-0">
+        //                         <p class="text-sm font-medium text-gray-900 truncate">${volume.Name}</p>
+        //                         <p class="text-sm text-gray-500">Driver: ${volume.Driver}</p>
+        //                         <p class="text-sm text-gray-500">Mountpoint: ${volume.Mountpoint}</p>
+        //                     </div>
+        //                 </div>
+        //             </li>
+        //         `;
+        //         $('#volumesList').append(item);
+        //     });
+        // }
+    }
+
+
+     // Paging button event handlers
+     $('#networksPrev').click(function() {
+        if (networksPage > 0) {
+            networksPage--;
+            fetchDockerResources();
+        }
+    });
+
+    $('#networksNext').click(function() {
+        networksPage++;
+        fetchDockerResources();
+    });
+
+    $('#volumesPrev').click(function() {
+        if (volumesPage > 0) {
+            volumesPage--;
+            fetchDockerResources();
+        }
+    });
+
+    $('#volumesNext').click(function() {
+        volumesPage++;
+        fetchDockerResources();
+    });
+
+    
+    // Container action handlers
+    async function handleContainerAction(action, containerId) {
+        try {
+            const actions = {
+                start: () => $.post(`${API_BASE_URL}/containers/${containerId}/start`),
+                stop: () => $.post(`${API_BASE_URL}/containers/${containerId}/stop`),
+                remove: () => $.ajax({
+                    url: `${API_BASE_URL}/containers/${containerId}`,
+                    type: 'DELETE',
+                    data: { force: true }
+                })
+            };
+
+            await actions[action]();
+            await fetchDockerResources(); // Refresh data after action
+        } catch (error) {
+            console.error(`Error performing ${action} action:`, error);
+            showError(`Failed to ${action} container. Please try again.`);
+        }
+    }
+
+    // Event handlers
+    $('#refreshBtn').click(function() {
+        $(this).addClass('animate-spin');
+        fetchDockerResources().finally(() => {
+            setTimeout(() => {
+                $(this).removeClass('animate-spin');
+            }, 500);
+        });
+    });
+
+    $(document).on('click', '.container-action', function() {
+        const action = $(this).data('action');
+        const containerId = $(this).closest('tr').data('id');
+        handleContainerAction(action, containerId);
+    });
+
+    // Initial data fetch
+    fetchDockerResources();
+
+    // Set up auto-refresh every 30 seconds
+    setInterval(fetchDockerResources, 30000);
+});
+    </script>
+</body>
+</html>

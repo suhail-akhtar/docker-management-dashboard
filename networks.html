@@ -1,0 +1,577 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Docker Networks Dashboard</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/js/all.min.js"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css" rel="stylesheet">
+    <style>
+        .network-card:hover {
+            transform: translateY(-5px);
+            transition: transform 0.3s ease;
+        }
+        .traffic-chart {
+            height: 200px;
+        }
+    </style>
+</head>
+<body class="bg-gray-100">
+    <div class="min-h-screen">
+        <!-- Navigation -->
+        <nav class="bg-white shadow-lg">
+            <div class="max-w-7xl mx-auto px-4">
+                <div class="flex justify-between items-center py-4">
+                    <div class="flex items-center">
+                        <a href="index.html" class="text-gray-500 hover:text-gray-700 mr-4">
+                            <i class="fas fa-arrow-left"></i> Back to Dashboard
+                        </a>
+                        <i class="fas fa-network-wired text-2xl text-blue-500 mr-2"></i>
+                        <span class="text-xl font-semibold text-gray-800">Networks Dashboard</span>
+                    </div>
+                    <div class="flex items-center space-x-4">
+                        <button id="createNetworkBtn" class="bg-green-500 text-white px-4 py-2 rounded-md hover:bg-green-600 transition-colors">
+                            <i class="fas fa-plus mr-2"></i>Create Network
+                        </button>
+                        <button id="refreshBtn" class="bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600 transition-colors">
+                            <i class="fas fa-sync-alt mr-2"></i>Refresh
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </nav>
+
+        <!-- Main Content -->
+        <div class="max-w-7xl mx-auto px-4 py-8">
+            <!-- Network Stats Overview -->
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                <!-- Total Networks -->
+                <div class="bg-white rounded-lg shadow p-6 network-card">
+                    <div class="flex items-center">
+                        <div class="p-3 rounded-full bg-blue-100 mr-4">
+                            <i class="fas fa-network-wired text-blue-500"></i>
+                        </div>
+                        <div>
+                            <p class="text-gray-500">Total Networks</p>
+                            <p class="text-2xl font-semibold" id="totalNetworks">0</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Active Networks -->
+                <div class="bg-white rounded-lg shadow p-6 network-card">
+                    <div class="flex items-center">
+                        <div class="p-3 rounded-full bg-green-100 mr-4">
+                            <i class="fas fa-check-circle text-green-500"></i>
+                        </div>
+                        <div>
+                            <p class="text-gray-500">Active Networks</p>
+                            <p class="text-2xl font-semibold" id="activeNetworks">0</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Connected Containers -->
+                <div class="bg-white rounded-lg shadow p-6 network-card">
+                    <div class="flex items-center">
+                        <div class="p-3 rounded-full bg-purple-100 mr-4">
+                            <i class="fas fa-cubes text-purple-500"></i>
+                        </div>
+                        <div>
+                            <p class="text-gray-500">Connected Containers</p>
+                            <p class="text-2xl font-semibold" id="connectedContainers">0</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Network Traffic -->
+                <div class="bg-white rounded-lg shadow p-6 network-card">
+                    <div class="flex items-center">
+                        <div class="p-3 rounded-full bg-yellow-100 mr-4">
+                            <i class="fas fa-exchange-alt text-yellow-500"></i>
+                        </div>
+                        <div>
+                            <p class="text-gray-500">Total Traffic</p>
+                            <p class="text-2xl font-semibold" id="totalTraffic">0 MB</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Networks List -->
+            <div class="bg-white rounded-lg shadow mb-8">
+                <div class="px-6 py-4 border-b border-gray-200">
+                    <h2 class="text-lg font-semibold text-gray-800">Docker Networks</h2>
+                </div>
+                <div class="p-6">
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full divide-y divide-gray-200">
+                            <thead>
+                                <tr>
+                                    <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
+                                    <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Driver</th>
+                                    <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Subnet</th>
+                                    <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Containers</th>
+                                    <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                                    <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody class="bg-white divide-y divide-gray-200" id="networksList">
+                                <!-- Network rows will be inserted here -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Create Network Modal -->
+    <div id="createNetworkModal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full">
+        <div class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+            <div class="flex justify-between items-center pb-3">
+                <h3 class="text-xl font-semibold">Create New Network</h3>
+                <button id="closeCreateNetworkModal" class="text-gray-400 hover:text-gray-500">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <form id="createNetworkForm" class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">Network Name</label>
+                    <input type="text" id="networkName" name="networkName" required
+                        class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">Driver</label>
+                    <select id="networkDriver" name="networkDriver" required
+                        class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                        <option value="bridge">Bridge</option>
+                        <option value="overlay">Overlay</option>
+                        <option value="macvlan">Macvlan</option>
+                        <option value="ipvlan">IPvlan</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">Subnet (optional)</label>
+                    <input type="text" id="networkSubnet" name="networkSubnet" placeholder="e.g., 172.20.0.0/16"
+                        class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">Gateway (optional)</label>
+                    <input type="text" id="networkGateway" name="networkGateway" placeholder="e.g., 172.20.0.1"
+                        class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                </div>
+                <div class="pt-4">
+                    <button type="submit"
+                        class="w-full px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        Create Network
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Loading Spinner -->
+    <div id="loadingSpinner" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full">
+        <div class="relative top-20 mx-auto p-5 border w-32 shadow-lg rounded-md bg-white">
+            <div class="flex justify-center">
+                <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+$(document).ready(function() {
+    const API_BASE_URL = 'http://172.22.106.116:2370';
+    let networkStats = {
+        inboundData: [],
+        outboundData: []
+    };
+    let charts = {};
+
+    // Initialize Charts
+    function initializeCharts() {
+        const commonOptions = {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    title: {
+                        display: true,
+                        text: 'Traffic (MB/s)'
+                    }
+                },
+                x: {
+                    title: {
+                        display: true,
+                        text: 'Time'
+                    }
+                }
+            }
+        };
+
+        // Inbound Traffic Chart
+        const inboundCtx = document.getElementById('inboundTrafficChart').getContext('2d');
+        charts.inbound = new Chart(inboundCtx, {
+            type: 'line',
+            data: {
+                labels: [],
+                datasets: [{
+                    label: 'Inbound Traffic',
+                    data: [],
+                    borderColor: 'rgb(59, 130, 246)',
+                    tension: 0.1
+                }]
+            },
+            options: commonOptions
+        });
+
+        // Outbound Traffic Chart
+        const outboundCtx = document.getElementById('outboundTrafficChart').getContext('2d');
+        charts.outbound = new Chart(outboundCtx, {
+            type: 'line',
+            data: {
+                labels: [],
+                datasets: [{
+                    label: 'Outbound Traffic',
+                    data: [],
+                    borderColor: 'rgb(16, 185, 129)',
+                    tension: 0.1
+                }]
+            },
+            options: commonOptions
+        });
+    }
+
+    // Format bytes to human readable format
+    function formatBytes(bytes) {
+        if (bytes === 0) return '0 B';
+        const k = 1024;
+        const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    }
+
+    // Show notification
+    function showNotification(message, type = 'success') {
+        const colors = {
+            success: 'bg-green-100 border-green-500 text-green-700',
+            error: 'bg-red-100 border-red-500 text-red-700'
+        };
+
+        const html = `
+            <div class="fixed top-4 right-4 p-4 rounded-md shadow-lg border-l-4 ${colors[type]} alert">
+                <p>${message}</p>
+            </div>
+        `;
+        
+        $(html).appendTo('body').delay(3000).fadeOut('slow', function() {
+            $(this).remove();
+        });
+    }
+
+    // Fetch network statistics
+    async function fetchNetworkStats() {
+        try {
+            const [networks, containers] = await Promise.all([
+                $.get(`${API_BASE_URL}/networks`),
+                $.get(`${API_BASE_URL}/containers/json?all=true`)
+            ]);
+
+            // Update counters
+            $('#totalNetworks').text(networks.length);
+            
+            const activeNetworks = networks.filter(network => {
+                const hasConnectedContainers = Object.keys(network.Containers || {}).length > 0;
+                const isUsedByRunningContainer = containers.some(container => 
+                    container.NetworkSettings?.Networks && 
+                    Object.keys(container.NetworkSettings.Networks).includes(network.Name) &&
+                    container.State === 'running'
+                );
+                return hasConnectedContainers || isUsedByRunningContainer;
+            }).length;
+            $('#activeNetworks').text(activeNetworks);
+
+            let totalConnectedContainers = 0;
+            networks.forEach(network => {
+                totalConnectedContainers += Object.keys(network.Containers || {}).length;
+            });
+            $('#connectedContainers').text(totalConnectedContainers);
+
+            // Update networks table
+            updateNetworksTable(networks, containers);
+
+        } catch (error) {
+            console.error('Error fetching network stats:', error);
+            showNotification('Failed to fetch network statistics', 'error');
+        }
+    }
+
+    // Update networks table
+    function updateNetworksTable(networks, containers) {
+        const networksList = $('#networksList').empty();
+        
+        networks.forEach(network => {
+            const connectedContainers = Object.keys(network.Containers || {}).length;
+            const subnet = network.IPAM?.Config?.[0]?.Subnet || 'N/A';
+            const isUsedByRunningContainer = containers.some(container => 
+                container.NetworkSettings?.Networks && 
+                Object.keys(container.NetworkSettings.Networks).includes(network.Name) &&
+                container.State === 'running'
+            );
+            
+            const status = (connectedContainers > 0 && isUsedByRunningContainer) ? 'Active' : 'Inactive';
+            const statusClass = status === 'Active' ? 
+                'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800';
+
+            const row = `
+                <tr class="hover:bg-gray-50 cursor-pointer network-row" data-id="${network.Id}">
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <div class="flex items-center">
+                            <div class="text-sm font-medium text-gray-900">
+                                ${network.Name}
+                                <span class="text-gray-400 text-xs ml-2">${network.Id.slice(0, 12)}</span>
+                            </div>
+                        </div>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${network.Driver}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${subnet}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${connectedContainers}</td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${statusClass}">
+                            ${status}
+                        </span>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-2">
+                        <button class="network-action text-blue-600 hover:text-blue-900" 
+                                data-action="details" title="View Details">
+                            <i class="fas fa-info-circle"></i>
+                        </button>
+                        ${network.Name !== 'bridge' && network.Name !== 'host' && network.Name !== 'none' ?
+                            `<button class="network-action text-red-600 hover:text-red-900" 
+                                     data-action="remove" title="Remove Network">
+                                <i class="fas fa-trash"></i>
+                            </button>` : ''
+                        }
+                    </td>
+                </tr>
+            `;
+            networksList.append(row);
+        });
+    }
+
+    // Simulate network traffic data
+    function updateTrafficStats() {
+        const now = new Date();
+        const timeLabel = now.toLocaleTimeString();
+
+        // Simulate some traffic data (replace with real data in production)
+        const inbound = Math.random() * 100;
+        const outbound = Math.random() * 100;
+
+        // Update chart data
+        if (charts.inbound && charts.outbound) {
+            // Keep last 10 data points
+            if (charts.inbound.data.labels.length > 10) {
+                charts.inbound.data.labels.shift();
+                charts.inbound.data.datasets[0].data.shift();
+                charts.outbound.data.labels.shift();
+                charts.outbound.data.datasets[0].data.shift();
+            }
+
+            charts.inbound.data.labels.push(timeLabel);
+            charts.inbound.data.datasets[0].data.push(inbound);
+            charts.outbound.data.labels.push(timeLabel);
+            charts.outbound.data.datasets[0].data.push(outbound);
+
+            charts.inbound.update();
+            charts.outbound.update();
+        }
+
+        // Update total traffic display
+        const totalTraffic = formatBytes((inbound + outbound) * 1024 * 1024); // Convert to bytes
+        $('#totalTraffic').text(totalTraffic);
+    }
+
+    // Create network handler
+    async function createNetwork(networkData) {
+        try {
+            // Prepare the network creation payload
+            const payload = {
+                Name: networkData.name,
+                Driver: networkData.driver,
+                IPAM: {
+                    Driver: "default",
+                    Config: []
+                },
+                EnableIPv6: false,
+                Options: {}
+            };
+
+            // Only add IPAM config if both subnet and gateway are provided
+            if (networkData.subnet && networkData.subnet.includes('/')) {
+                const ipamConfig = {
+                    Subnet: networkData.subnet
+                };
+                
+                // Add gateway only if it's provided and subnet exists
+                if (networkData.gateway) {
+                    ipamConfig.Gateway = networkData.gateway;
+                }
+                
+                payload.IPAM.Config.push(ipamConfig);
+            }
+
+            console.log('Creating network with payload:', payload);
+
+            const response = await $.ajax({
+                url: `${API_BASE_URL}/networks/create`,
+                method: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify(payload)
+            });
+
+            showNotification('Network created successfully');
+            $('#createNetworkModal').addClass('hidden');
+            
+            // Reset form
+            $('#createNetworkForm')[0].reset();
+            
+            await fetchNetworkStats();
+        } catch (error) {
+            console.error('Error creating network:', error);
+            const errorMessage = error.responseJSON?.message || error.message || 'Unknown error occurred';
+            showNotification('Failed to create network: ' + errorMessage, 'error');
+        }
+    }
+
+    // Remove network handler
+    async function removeNetwork(networkId) {
+        try {
+            await $.ajax({
+                url: `${API_BASE_URL}/networks/${networkId}`,
+                method: 'DELETE'
+            });
+
+            showNotification('Network removed successfully');
+            await fetchNetworkStats();
+        } catch (error) {
+            console.error('Error removing network:', error);
+            showNotification('Failed to remove network: ' + (error.responseJSON?.message || error.message), 'error');
+        }
+    }
+
+    // Event Handlers
+    $('#createNetworkBtn').click(() => {
+        $('#createNetworkModal').removeClass('hidden');
+    });
+
+    $('#closeCreateNetworkModal').click(() => {
+        $('#createNetworkModal').addClass('hidden');
+    });
+
+    // Add input validation for subnet
+    $('#networkSubnet').on('input', function() {
+        const subnet = $(this).val();
+        const subnetHelp = $('#subnetHelp');
+        
+        if (subnet && !subnet.includes('/')) {
+            if (!subnetHelp.length) {
+                $(this).after('<p id="subnetHelp" class="mt-1 text-sm text-red-600">Subnet must be in CIDR format (e.g., 172.20.0.0/16)</p>');
+            }
+        } else {
+            subnetHelp.remove();
+        }
+    });
+
+    // Add dependency check for gateway
+    $('#networkGateway').on('input', function() {
+        const gateway = $(this).val();
+        const subnet = $('#networkSubnet').val();
+        const gatewayHelp = $('#gatewayHelp');
+        
+        if (gateway && !subnet) {
+            if (!gatewayHelp.length) {
+                $(this).after('<p id="gatewayHelp" class="mt-1 text-sm text-red-600">Subnet must be specified when using a gateway</p>');
+            }
+        } else {
+            gatewayHelp.remove();
+        }
+    });
+
+    $('#createNetworkForm').submit(function(e) {
+        e.preventDefault();
+        
+        // Get form values
+        const networkData = {
+            name: $('#networkName').val().trim(),
+            driver: $('#networkDriver').val(),
+            subnet: $('#networkSubnet').val().trim(),
+            gateway: $('#networkGateway').val().trim()
+        };
+
+        // Basic validation
+        if (!networkData.name) {
+            showNotification('Network name is required', 'error');
+            return;
+        }
+
+        // Validate subnet format if provided
+        if (networkData.subnet && !networkData.subnet.includes('/')) {
+            showNotification('Subnet must be in CIDR format (e.g., 172.20.0.0/16)', 'error');
+            return;
+        }
+
+        // Validate gateway dependency on subnet
+        if (networkData.gateway && !networkData.subnet) {
+            showNotification('Subnet must be specified when using a gateway', 'error');
+            return;
+        }
+
+        createNetwork(networkData);
+    });
+
+    $('#refreshBtn').click(function() {
+        $(this).find('i').addClass('animate-spin');
+        fetchNetworkStats().finally(() => {
+            setTimeout(() => {
+                $(this).find('i').removeClass('animate-spin');
+            }, 500);
+        });
+    });
+
+    $(document).on('click', '.network-action', async function(e) {
+        e.stopPropagation();
+        const action = $(this).data('action');
+        const networkId = $(this).closest('tr').data('id');
+
+        if (action === 'details') {
+            window.location.href = `network-detail.html?id=${networkId}`;
+        } else if (action === 'remove') {
+            if (confirm('Are you sure you want to remove this network?')) {
+                await removeNetwork(networkId);
+            }
+        }
+    });
+
+    $(document).on('click', '.network-row', function(e) {
+        if (!$(e.target).closest('.network-action').length) {
+            const networkId = $(this).data('id');
+            window.location.href = `network-detail.html?id=${networkId}`;
+        }
+    });
+
+    // Initialize
+    //initializeCharts();
+    fetchNetworkStats();
+
+    // Set up auto-refresh every 10 seconds
+    setInterval(fetchNetworkStats, 10000);
+});
+    </script>
+</body>
+
+</html>

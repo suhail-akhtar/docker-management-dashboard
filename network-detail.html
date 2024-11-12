@@ -1,0 +1,1074 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Docker Network Details</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/js/all.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.43.0/min/vs/loader.js"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css" rel="stylesheet">
+</head>
+<body class="bg-gray-100">
+    <div class="min-h-screen">
+        <!-- Navigation -->
+        <nav class="bg-white shadow-lg">
+            <div class="max-w-7xl mx-auto px-4">
+                <div class="flex justify-between items-center py-4">
+                    <div class="flex items-center">
+                        <a href="networks.html" class="text-gray-500 hover:text-gray-700 mr-4">
+                            <i class="fas fa-arrow-left"></i> Back to Networks
+                        </a>
+                        <i class="fas fa-network-wired text-2xl text-blue-500 mr-2"></i>
+                        <span class="text-xl font-semibold text-gray-800">Network Details</span>
+                    </div>
+                    <div class="flex items-center space-x-4">
+                        <button id="refreshBtn" class="bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600 transition-colors">
+                            <i class="fas fa-sync-alt mr-2"></i>Refresh
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </nav>
+
+        <!-- Network Actions Toolbar -->
+        <div class="bg-white shadow-md mt-6 mx-auto max-w-7xl px-4">
+            <div class="py-4">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center">
+                        <h2 class="text-lg font-semibold text-gray-800 mr-4" id="networkName">Network Name</h2>
+                        <span id="networkStatus" class="px-3 py-1 rounded-full text-sm font-semibold">Status</span>
+                    </div>
+                    <div class="flex space-x-4">
+                        <button id="attachContainerBtn" class="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600">
+                            <i class="fas fa-plug mr-2"></i>Attach Container
+                        </button>
+                        <button id="editNetworkBtn" class="bg-yellow-500 text-white px-4 py-2 rounded hover:bg-yellow-600">
+                            <i class="fas fa-edit mr-2"></i>Edit Network
+                        </button>
+                        <button id="removeNetworkBtn" class="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600">
+                            <i class="fas fa-trash mr-2"></i>Remove Network
+                        </button>
+                        <button id="inspectBtn" class="bg-purple-500 text-white px-4 py-2 rounded hover:bg-purple-600">
+                            <i class="fas fa-search mr-2"></i>Inspect
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="max-w-7xl mx-auto px-4 py-8">
+            <!-- Basic Info Card -->
+            <div class="bg-white rounded-lg shadow mb-8">
+                <div class="px-6 py-4 border-b border-gray-200">
+                    <h3 class="text-lg font-semibold text-gray-800">Basic Information</h3>
+                </div>
+                <div class="p-6 grid grid-cols-2 gap-6">
+                    <div>
+                        <p class="text-sm text-gray-600 mb-1">Network ID</p>
+                        <p id="networkId" class="text-sm font-medium text-gray-900"></p>
+                    </div>
+                    <div>
+                        <p class="text-sm text-gray-600 mb-1">Driver</p>
+                        <p id="networkDriver" class="text-sm font-medium text-gray-900"></p>
+                    </div>
+                    <div>
+                        <p class="text-sm text-gray-600 mb-1">Scope</p>
+                        <p id="networkScope" class="text-sm font-medium text-gray-900"></p>
+                    </div>
+                    <div>
+                        <p class="text-sm text-gray-600 mb-1">Created</p>
+                        <p id="networkCreated" class="text-sm font-medium text-gray-900"></p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- IPAM Configuration -->
+            <div class="bg-white rounded-lg shadow mb-8">
+                <div class="px-6 py-4 border-b border-gray-200">
+                    <h3 class="text-lg font-semibold text-gray-800">IPAM Configuration</h3>
+                </div>
+                <div class="p-6">
+                    <div class="space-y-4" id="ipamConfig">
+                        <div class="grid grid-cols-3 gap-4">
+                            <div>
+                                <p class="text-sm text-gray-600 mb-1">Driver</p>
+                                <p id="ipamDriver" class="text-sm font-medium text-gray-900"></p>
+                            </div>
+                            <div>
+                                <p class="text-sm text-gray-600 mb-1">Subnet</p>
+                                <p id="ipamSubnet" class="text-sm font-medium text-gray-900"></p>
+                            </div>
+                            <div>
+                                <p class="text-sm text-gray-600 mb-1">Gateway</p>
+                                <p id="ipamGateway" class="text-sm font-medium text-gray-900"></p>
+                            </div>
+                        </div>
+                        <div id="ipamOptions" class="mt-4">
+                            <!-- Additional IPAM options will be listed here -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Connected Containers -->
+            <div class="bg-white rounded-lg shadow mb-8">
+                <div class="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
+                    <h3 class="text-lg font-semibold text-gray-800">Connected Containers</h3>
+                    <div class="flex items-center space-x-2">
+                        <span class="text-sm text-gray-500" id="containerCount">0 containers</span>
+                    </div>
+                </div>
+                <div class="p-6">
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full divide-y divide-gray-200">
+                            <thead>
+                                <tr>
+                                    <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase">Container Name</th>
+                                    <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase">IPv4 Address</th>
+                                    <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase">MAC Address</th>
+                                    <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                                    <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="containersList" class="bg-white divide-y divide-gray-200">
+                                <!-- Container rows will be inserted here -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Network Activity -->
+            <div class="bg-white rounded-lg shadow mb-8">
+                <div class="px-6 py-4 border-b border-gray-200">
+                    <h3 class="text-lg font-semibold text-gray-800">Network Activity</h3>
+                </div>
+                <div class="p-6">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <!-- Traffic Chart -->
+                        <div>
+                            <canvas id="trafficChart" class="w-full" height="200"></canvas>
+                        </div>
+                        <!-- Network Stats -->
+                        <div class="grid grid-cols-2 gap-4">
+                            <div class="bg-gray-50 rounded-lg p-4">
+                                <p class="text-sm text-gray-600">Total Traffic</p>
+                                <p id="totalTraffic" class="text-2xl font-semibold text-gray-900">0 MB</p>
+                            </div>
+                            <div class="bg-gray-50 rounded-lg p-4">
+                                <p class="text-sm text-gray-600">Active Connections</p>
+                                <p id="activeConnections" class="text-2xl font-semibold text-gray-900">0</p>
+                            </div>
+                            <div class="bg-gray-50 rounded-lg p-4">
+                                <p class="text-sm text-gray-600">Inbound Traffic</p>
+                                <p id="inboundTraffic" class="text-2xl font-semibold text-gray-900">0 MB/s</p>
+                            </div>
+                            <div class="bg-gray-50 rounded-lg p-4">
+                                <p class="text-sm text-gray-600">Outbound Traffic</p>
+                                <p id="outboundTraffic" class="text-2xl font-semibold text-gray-900">0 MB/s</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Attach Container Modal -->
+    <div id="attachContainerModal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full">
+        <div class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+            <div class="flex justify-between items-center pb-3">
+                <h3 class="text-xl font-semibold">Attach Container</h3>
+                <button id="closeAttachContainerModal" class="text-gray-400 hover:text-gray-500">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <form id="attachContainerForm" class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">Select Container</label>
+                    <select id="containerSelect" class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 rounded-md">
+                        <!-- Container options will be populated dynamically -->
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">IPv4 Address (Optional)</label>
+                    <input type="text" id="ipv4Address" placeholder="e.g., 172.20.0.10"
+                        class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                </div>
+                <div class="pt-4">
+                    <button type="submit"
+                        class="w-full px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        Attach Container
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+
+    <!-- Edit Network Modal -->
+    <div id="editNetworkModal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full">
+        <div class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+            <div class="flex justify-between items-center pb-3">
+                <h3 class="text-xl font-semibold">Edit Network Configuration</h3>
+                <button id="closeEditNetworkModal" class="text-gray-400 hover:text-gray-500">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <form id="editNetworkForm" class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">Network Name</label>
+                    <input type="text" id="editNetworkName" 
+                        class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">Labels</label>
+                    <div id="labelsList" class="space-y-2">
+                        <!-- Labels will be added here -->
+                        <div class="flex items-center space-x-2">
+                            <input type="text" placeholder="Key" class="flex-1 px-3 py-2 border border-gray-300 rounded-md">
+                            <span class="text-gray-500">=</span>
+                            <input type="text" placeholder="Value" class="flex-1 px-3 py-2 border border-gray-300 rounded-md">
+                            <button type="button" class="text-red-500 hover:text-red-700">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <button type="button" id="addLabelBtn" class="mt-2 text-blue-500 hover:text-blue-700">
+                        <i class="fas fa-plus mr-1"></i> Add Label
+                    </button>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">Enable IPv6</label>
+                    <div class="mt-1">
+                        <label class="inline-flex items-center">
+                            <input type="checkbox" id="enableIPv6" class="form-checkbox h-4 w-4 text-blue-600">
+                            <span class="ml-2 text-gray-700">Enable IPv6 networking</span>
+                        </label>
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">Network Options</label>
+                    <div id="optionsList" class="space-y-2">
+                        <!-- Network options will be added here -->
+                    </div>
+                    <button type="button" id="addOptionBtn" class="mt-2 text-blue-500 hover:text-blue-700">
+                        <i class="fas fa-plus mr-1"></i> Add Option
+                    </button>
+                </div>
+                <div class="pt-4">
+                    <button type="submit"
+                        class="w-full px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        Save Changes
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Network Inspection Modal -->
+    <div id="inspectModal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full">
+        <div class="relative top-20 mx-auto p-5 border w-3/4 shadow-lg rounded-md bg-white">
+            <div class="flex justify-between items-center pb-3">
+                <h3 class="text-xl font-semibold">Network Inspection</h3>
+                <div class="flex items-center space-x-4">
+                    <button id="copyInspectBtn" class="text-blue-500 hover:text-blue-700">
+                        <i class="fas fa-copy mr-1"></i> Copy
+                    </button>
+                    <button id="closeInspectModal" class="text-gray-400 hover:text-gray-500">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+            </div>
+            <div class="mt-4">
+                <div id="inspectEditor" style="height: 600px; border: 1px solid #ddd;"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Advanced Network Information -->
+    <div id="advancedNetworkInfo" class="hidden">
+        <div class="max-w-7xl mx-auto px-4 py-8">
+            <!-- Network Metrics -->
+            <div class="bg-white rounded-lg shadow mb-8">
+                <div class="px-6 py-4 border-b border-gray-200">
+                    <h3 class="text-lg font-semibold text-gray-800">Detailed Metrics</h3>
+                </div>
+                <div class="p-6">
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <!-- Packet Statistics -->
+                        <div class="bg-gray-50 rounded-lg p-4">
+                            <h4 class="text-sm font-semibold text-gray-700 mb-2">Packet Statistics</h4>
+                            <div class="space-y-2">
+                                <div>
+                                    <span class="text-xs text-gray-500">Packets Received</span>
+                                    <p id="packetsReceived" class="text-lg font-medium">0</p>
+                                </div>
+                                <div>
+                                    <span class="text-xs text-gray-500">Packets Sent</span>
+                                    <p id="packetsSent" class="text-lg font-medium">0</p>
+                                </div>
+                                <div>
+                                    <span class="text-xs text-gray-500">Packet Loss</span>
+                                    <p id="packetLoss" class="text-lg font-medium">0%</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Bandwidth Usage -->
+                        <div class="bg-gray-50 rounded-lg p-4">
+                            <h4 class="text-sm font-semibold text-gray-700 mb-2">Bandwidth Usage</h4>
+                            <div class="space-y-2">
+                                <div>
+                                    <span class="text-xs text-gray-500">Current Usage</span>
+                                    <p id="currentBandwidth" class="text-lg font-medium">0 MB/s</p>
+                                </div>
+                                <div>
+                                    <span class="text-xs text-gray-500">Peak Usage</span>
+                                    <p id="peakBandwidth" class="text-lg font-medium">0 MB/s</p>
+                                </div>
+                                <div>
+                                    <span class="text-xs text-gray-500">Average Usage</span>
+                                    <p id="avgBandwidth" class="text-lg font-medium">0 MB/s</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Error Statistics -->
+                        <div class="bg-gray-50 rounded-lg p-4">
+                            <h4 class="text-sm font-semibold text-gray-700 mb-2">Error Statistics</h4>
+                            <div class="space-y-2">
+                                <div>
+                                    <span class="text-xs text-gray-500">Network Errors</span>
+                                    <p id="networkErrors" class="text-lg font-medium">0</p>
+                                </div>
+                                <div>
+                                    <span class="text-xs text-gray-500">Collisions</span>
+                                    <p id="collisions" class="text-lg font-medium">0</p>
+                                </div>
+                                <div>
+                                    <span class="text-xs text-gray-500">Dropped Packets</span>
+                                    <p id="droppedPackets" class="text-lg font-medium">0</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Network Topology -->
+            <div class="bg-white rounded-lg shadow mb-8">
+                <div class="px-6 py-4 border-b border-gray-200">
+                    <h3 class="text-lg font-semibold text-gray-800">Network Topology</h3>
+                </div>
+                <div class="p-6">
+                    <div id="networkTopology" class="h-96 bg-gray-50 rounded-lg flex items-center justify-center">
+                        <!-- Network topology visualization will be rendered here -->
+                        <p class="text-gray-500">Network topology visualization</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading Spinner -->
+    <div id="loadingSpinner" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full">
+        <div class="relative top-20 mx-auto p-5 border w-32 shadow-lg rounded-md bg-white">
+            <div class="flex justify-center">
+                <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Notification System -->
+    <div id="notificationContainer" class="fixed top-4 right-4 z-50 space-y-2">
+        <!-- Notifications will be dynamically inserted here -->
+    </div>
+
+    <!-- Confirmation Modal -->
+    <div id="confirmationModal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full">
+        <div class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+            <div class="mt-3 text-center">
+                <div class="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-red-100">
+                    <i class="fas fa-exclamation-triangle text-red-600"></i>
+                </div>
+                <h3 class="text-lg leading-6 font-medium text-gray-900 mt-4" id="confirmationTitle">Confirm Action</h3>
+                <div class="mt-2 px-7 py-3">
+                    <p class="text-sm text-gray-500" id="confirmationMessage">
+                        Are you sure you want to perform this action?
+                    </p>
+                </div>
+                <div class="flex justify-center mt-4 space-x-4">
+                    <button id="confirmationCancel" 
+                            class="px-4 py-2 bg-gray-500 text-white text-base font-medium rounded-md shadow-sm hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-gray-300">
+                        Cancel
+                    </button>
+                    <button id="confirmationConfirm"
+                            class="px-4 py-2 bg-red-500 text-white text-base font-medium rounded-md shadow-sm hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-red-300">
+                        Confirm
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+    <script>
+        $(document).ready(function() {
+    const API_BASE_URL = 'http://172.22.106.116:2370';
+    let networkId = new URLSearchParams(window.location.search).get('id');
+    let networkData = null;
+    let editor = null;
+    let charts = {};
+
+    // Initialize Monaco Editor
+    require.config({ paths: { 'vs': 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.43.0/min/vs' }});
+    require(['vs/editor/editor.main'], function() {
+        editor = monaco.editor.create(document.getElementById('inspectEditor'), {
+            language: 'json',
+            theme: 'vs-dark',
+            readOnly: true,
+            minimap: { enabled: false },
+            automaticLayout: true
+        });
+    });
+
+    // Initialize Chart
+    function initializeCharts() {
+        const ctx = document.getElementById('trafficChart').getContext('2d');
+        charts.traffic = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: [],
+                datasets: [
+                    {
+                        label: 'Inbound Traffic',
+                        borderColor: 'rgb(59, 130, 246)',
+                        data: []
+                    },
+                    {
+                        label: 'Outbound Traffic',
+                        borderColor: 'rgb(16, 185, 129)',
+                        data: []
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        title: {
+                            display: true,
+                            text: 'Traffic (MB/s)'
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    // Format bytes to human readable format
+    function formatBytes(bytes) {
+        if (bytes === 0) return '0 B';
+        const k = 1024;
+        const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    }
+
+    // Show notification
+    function showNotification(message, type = 'success') {
+        const colors = {
+            success: 'bg-green-100 border-green-500 text-green-700',
+            error: 'bg-red-100 border-red-500 text-red-700'
+        };
+
+        const html = `
+            <div class="p-4 rounded-md shadow-lg border-l-4 ${colors[type]} notification">
+                <p>${message}</p>
+            </div>
+        `;
+
+        const notification = $(html).appendTo('#notificationContainer');
+        setTimeout(() => {
+            notification.fadeOut('slow', function() { $(this).remove(); });
+        }, 3000);
+    }
+
+    // Fetch and display network details
+    async function fetchNetworkDetails() {
+        try {
+            const response = await $.get(`${API_BASE_URL}/networks/${networkId}`);
+            networkData = response;
+            updateUI(response);
+        } catch (error) {
+            console.error('Error fetching network details:', error);
+            showNotification('Failed to fetch network details', 'error');
+        }
+    }
+
+    // Update UI with network data
+    function updateUI(data) {
+        // Update basic info
+        $('#networkName').text(data.Name);
+        $('#networkId').text(data.Id.slice(0, 12));
+        $('#networkDriver').text(data.Driver);
+        $('#networkScope').text(data.Scope);
+
+        // Update IPAM info
+        if (data.IPAM) {
+            $('#ipamDriver').text(data.IPAM.Driver);
+            if (data.IPAM.Config && data.IPAM.Config.length > 0) {
+                $('#ipamSubnet').text(data.IPAM.Config[0].Subnet || 'N/A');
+                $('#ipamGateway').text(data.IPAM.Config[0].Gateway || 'N/A');
+            }
+        }
+
+        // Update connected containers
+        updateContainersList(data.Containers || {});
+
+        // Update network status
+        const status = Object.keys(data.Containers || {}).length > 0 ? 'Active' : 'Inactive';
+        const statusClass = status === 'Active' ? 
+            'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800';
+        $('#networkStatus').html(`
+            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${statusClass}">
+                ${status}
+            </span>
+        `);
+
+        // Update button states
+        updateButtonStates(data);
+
+        // Update raw JSON view
+        if (editor) {
+            editor.setValue(JSON.stringify(data, null, 2));
+        }
+    }
+
+    // Update containers list
+    function updateContainersList(containers) {
+        const containersList = $('#containersList').empty();
+        const containerCount = Object.keys(containers).length;
+        $('#containerCount').text(`${containerCount} container${containerCount !== 1 ? 's' : ''}`);
+
+        Object.entries(containers).forEach(([id, container]) => {
+            const row = `
+                <tr class="hover:bg-gray-50">
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <div class="flex items-center">
+                            <div class="text-sm font-medium text-gray-900">
+                                ${container.Name}
+                                <span class="text-gray-400 text-xs ml-2">${id.slice(0, 12)}</span>
+                            </div>
+                        </div>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${container.IPv4Address || 'N/A'}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${container.MacAddress || 'N/A'}</td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
+                            Connected
+                        </span>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                        <button class="text-red-600 hover:text-red-900 disconnect-container" data-id="${id}">
+                            <i class="fas fa-unlink mr-1"></i>Disconnect
+                        </button>
+                    </td>
+                </tr>
+            `;
+            containersList.append(row);
+        });
+    }
+
+    // Update button states based on network data
+    function updateButtonStates(data) {
+        const isSystemNetwork = ['bridge', 'host', 'none'].includes(data.Name);
+        $('#removeNetworkBtn').prop('disabled', isSystemNetwork)
+            .toggleClass('opacity-50', isSystemNetwork);
+        $('#editNetworkBtn').prop('disabled', isSystemNetwork)
+            .toggleClass('opacity-50', isSystemNetwork);
+    }
+
+    // Attach container handler
+    async function attachContainer(containerId, ipv4Address) {
+        try {
+            await $.ajax({
+                url: `${API_BASE_URL}/networks/${networkId}/connect`,
+                method: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify({
+                    Container: containerId,
+                    EndpointConfig: {
+                        IPv4Address: ipv4Address || ""
+                    }
+                })
+            });
+
+            showNotification('Container attached successfully');
+            $('#attachContainerModal').addClass('hidden');
+            await fetchNetworkDetails();
+        } catch (error) {
+            console.error('Error attaching container:', error);
+            showNotification('Failed to attach container: ' + (error.responseJSON?.message || error.message), 'error');
+        }
+    }
+
+    // Disconnect container handler
+    async function disconnectContainer(containerId) {
+        try {
+            await $.ajax({
+                url: `${API_BASE_URL}/networks/${networkId}/disconnect`,
+                method: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify({
+                    Container: containerId,
+                    Force: true
+                })
+            });
+
+            showNotification('Container disconnected successfully');
+            await fetchNetworkDetails();
+        } catch (error) {
+            console.error('Error disconnecting container:', error);
+            showNotification('Failed to disconnect container: ' + (error.responseJSON?.message || error.message), 'error');
+        }
+    }
+
+    // Remove network handler
+    async function removeNetwork() {
+        try {
+            await $.ajax({
+                url: `${API_BASE_URL}/networks/${networkId}`,
+                method: 'DELETE'
+            });
+
+            showNotification('Network removed successfully');
+            setTimeout(() => {
+                window.location.href = 'networks.html';
+            }, 1000);
+        } catch (error) {
+            console.error('Error removing network:', error);
+            showNotification('Failed to remove network: ' + (error.responseJSON?.message || error.message), 'error');
+        }
+    }
+
+    // Load available containers for attach modal
+    async function loadAvailableContainers() {
+        try {
+            const containers = await $.get(`${API_BASE_URL}/containers/json?all=true`);
+            const containerSelect = $('#containerSelect').empty();
+            
+            containers.forEach(container => {
+                const isConnected = networkData.Containers && 
+                    Object.keys(networkData.Containers).includes(container.Id);
+                
+                if (!isConnected) {
+                    containerSelect.append(`
+                        <option value="${container.Id}">
+                            ${container.Names[0].replace('/', '')} (${container.Id.slice(0, 12)})
+                        </option>
+                    `);
+                }
+            });
+        } catch (error) {
+            console.error('Error loading containers:', error);
+            showNotification('Failed to load available containers', 'error');
+        }
+    }
+
+    // Event Handlers
+    $('#refreshBtn').click(function() {
+        $(this).find('i').addClass('animate-spin');
+        fetchNetworkDetails().finally(() => {
+            setTimeout(() => {
+                $(this).find('i').removeClass('animate-spin');
+            }, 500);
+        });
+    });
+
+    $('#editNetworkBtn').click(function() {
+        if (!$(this).prop('disabled')) {
+            loadNetworkForEdit();
+        }
+    });
+
+    $('#attachContainerBtn').click(async function() {
+        await loadAvailableContainers();
+        $('#attachContainerModal').removeClass('hidden');
+    });
+
+    $('#closeAttachContainerModal').click(() => {
+        $('#attachContainerModal').addClass('hidden');
+    });
+
+    $('#closeEditNetworkModal').click(() => {
+        $('#editNetworkModal').addClass('hidden');
+    });
+
+    $('#attachContainerForm').submit(function(e) {
+        e.preventDefault();
+        const containerId = $('#containerSelect').val();
+        const ipv4Address = $('#ipv4Address').val();
+        if (containerId) {
+            attachContainer(containerId, ipv4Address);
+        }
+    });
+
+    $(document).on('click', '.disconnect-container', function() {
+        const containerId = $(this).data('id');
+        if (confirm('Are you sure you want to disconnect this container?')) {
+            disconnectContainer(containerId);
+        }
+    });
+
+    $('#removeNetworkBtn').click(() => {
+        if (confirm('Are you sure you want to remove this network?')) {
+            removeNetwork();
+        }
+    });
+
+    $('#inspectBtn').click(() => {
+        $('#inspectModal').removeClass('hidden');
+    });
+
+    $('#closeInspectModal').click(() => {
+        $('#inspectModal').addClass('hidden');
+    });
+
+    $('#copyInspectBtn').click(() => {
+        const content = editor.getValue();
+        navigator.clipboard.writeText(content)
+            .then(() => showNotification('Network info copied to clipboard'))
+            .catch(() => showNotification('Failed to copy to clipboard', 'error'));
+    });
+
+    // Handle network editing
+    async function loadNetworkForEdit() {
+        try {
+            // Clear existing labels
+            $('#labelsList').empty();
+            
+            // Set network name
+            $('#editNetworkName').val(networkData.Name);
+            
+            // Set IPv6 checkbox
+            $('#enableIPv6').prop('checked', networkData.EnableIPv6 || false);
+            
+            // Load labels
+            if (networkData.Labels) {
+                Object.entries(networkData.Labels).forEach(([key, value]) => {
+                    addLabelRow(key, value);
+                });
+            }
+            
+            // Load options
+            $('#optionsList').empty();
+            if (networkData.Options) {
+                Object.entries(networkData.Options).forEach(([key, value]) => {
+                    addOptionRow(key, value);
+                });
+            }
+
+            $('#editNetworkModal').removeClass('hidden');
+        } catch (error) {
+            console.error('Error loading network for edit:', error);
+            showNotification('Failed to load network configuration', 'error');
+        }
+    }
+
+    // Add label row
+    function addLabelRow(key = '', value = '') {
+        const rowId = Date.now();
+        const labelRow = `
+            <div class="flex items-center space-x-2 label-row" data-row-id="${rowId}">
+                <input type="text" placeholder="Key" value="${key}"
+                    class="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 label-key">
+                <span class="text-gray-400">=</span>
+                <input type="text" placeholder="Value" value="${value}"
+                    class="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 label-value">
+                <button type="button" class="remove-label p-1 text-red-500 hover:text-red-700">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+        `;
+        $('#labelsList').append(labelRow);
+    }
+
+    // Add option row
+    function addOptionRow(key = '', value = '') {
+        const rowId = Date.now();
+        const optionRow = `
+            <div class="flex items-center space-x-2 option-row" data-row-id="${rowId}">
+                <input type="text" placeholder="Option name" value="${key}"
+                    class="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 option-key">
+                <span class="text-gray-400">=</span>
+                <input type="text" placeholder="Option value" value="${value}"
+                    class="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 option-value">
+                <button type="button" class="remove-option p-1 text-red-500 hover:text-red-700">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+        `;
+        $('#optionsList').append(optionRow);
+    }
+
+    // Load network for edit
+    async function loadNetworkForEdit() {
+        try {
+            // Clear existing form
+            $('#labelsList, #optionsList').empty();
+            
+            // Set network name
+            $('#editNetworkName').val(networkData.Name);
+            
+            // Set IPv6 checkbox
+            $('#enableIPv6').prop('checked', networkData.EnableIPv6 || false);
+            
+            // Load existing labels
+            if (networkData.Labels && Object.keys(networkData.Labels).length > 0) {
+                Object.entries(networkData.Labels).forEach(([key, value]) => {
+                    addLabelRow(key, value);
+                });
+            }
+            
+            // Load existing options
+            if (networkData.Options && Object.keys(networkData.Options).length > 0) {
+                Object.entries(networkData.Options).forEach(([key, value]) => {
+                    addOptionRow(key, value);
+                });
+            }
+
+            $('#editNetworkModal').removeClass('hidden');
+        } catch (error) {
+            console.error('Error loading network for edit:', error);
+            showNotification('Failed to load network configuration', 'error');
+        }
+    }
+
+    // Update network configuration
+    async function updateNetworkConfiguration(formData) {
+        $('#loadingSpinner').removeClass('hidden');
+        try {
+            // Validate system network
+            if (['bridge', 'host', 'none'].includes(networkData.Name)) {
+                throw new Error('Cannot modify system networks');
+            }
+
+            // Store connected containers info
+            const connectedContainers = networkData.Containers || {};
+            
+            // Prepare IPAM config
+            let ipamConfig = {
+                Driver: networkData.IPAM?.Driver || "default",
+                Config: []
+            };
+
+            // If IPv4 config exists in current network, keep it
+            if (networkData.IPAM?.Config) {
+                const ipv4Config = networkData.IPAM.Config.find(cfg => cfg.Subnet && !cfg.Subnet.includes(':'));
+                if (ipv4Config) {
+                    ipamConfig.Config.push(ipv4Config);
+                }
+            }
+
+            // Add IPv6 configuration if enabled
+            if (formData.enableIPv6) {
+                ipamConfig.Config.push({
+                    Subnet: 'fd00::/80',
+                    Gateway: 'fd00::1'
+                });
+            }
+
+            // Disconnect all containers first
+            for (const containerId in connectedContainers) {
+                try {
+                    await $.ajax({
+                        url: `${API_BASE_URL}/networks/${networkId}/disconnect`,
+                        method: 'POST',
+                        contentType: 'application/json',
+                        data: JSON.stringify({
+                            Container: containerId,
+                            Force: true
+                        })
+                    });
+                } catch (err) {
+                    console.warn(`Failed to disconnect container ${containerId}:`, err);
+                }
+            }
+
+            // Remove the old network
+            try {
+                await $.ajax({
+                    url: `${API_BASE_URL}/networks/${networkId}`,
+                    method: 'DELETE'
+                });
+            } catch (err) {
+                console.warn('Error removing old network:', err);
+            }
+
+            // Create new network with updated configuration
+            const createResponse = await $.ajax({
+                url: `${API_BASE_URL}/networks/create`,
+                method: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify({
+                    Name: formData.name,
+                    Driver: networkData.Driver,
+                    EnableIPv6: formData.enableIPv6,
+                    IPAM: ipamConfig,
+                    Labels: formData.labels || {},
+                    Options: formData.options || {}
+                })
+            });
+
+            // Reconnect all containers to the new network
+            for (const containerId in connectedContainers) {
+                const container = connectedContainers[containerId];
+                try {
+                    const endpointConfig = {
+                        IPAMConfig: {}
+                    };
+
+                    // Add IPv4 address if exists
+                    if (container.IPv4Address) {
+                        endpointConfig.IPAMConfig.IPv4Address = container.IPv4Address.split('/')[0];
+                    }
+
+                    // Add IPv6 address if exists and IPv6 is enabled
+                    if (formData.enableIPv6 && container.IPv6Address) {
+                        endpointConfig.IPAMConfig.IPv6Address = container.IPv6Address.split('/')[0];
+                    }
+
+                    await $.ajax({
+                        url: `${API_BASE_URL}/networks/${createResponse.Id}/connect`,
+                        method: 'POST',
+                        contentType: 'application/json',
+                        data: JSON.stringify({
+                            Container: containerId,
+                            EndpointConfig: endpointConfig
+                        })
+                    });
+                } catch (err) {
+                    console.warn(`Failed to reconnect container ${containerId}:`, err);
+                }
+            }
+
+            // Update networkId and redirect
+            networkId = createResponse.Id;
+            window.history.replaceState(null, '', `?id=${networkId}`);
+            
+            showNotification('Network configuration updated successfully');
+            $('#editNetworkModal').addClass('hidden');
+            await fetchNetworkDetails();
+
+        } catch (error) {
+            console.error('Error updating network:', error);
+            const errorMessage = error.responseJSON?.message || error.message || 'Failed to update network configuration';
+            showNotification(errorMessage, 'error');
+            
+            // If error occurs, try to recreate the network with original configuration
+            try {
+                const createResponse = await $.ajax({
+                    url: `${API_BASE_URL}/networks/create`,
+                    method: 'POST',
+                    contentType: 'application/json',
+                    data: JSON.stringify({
+                        Name: networkData.Name,
+                        Driver: networkData.Driver,
+                        IPAM: networkData.IPAM,
+                        EnableIPv6: networkData.EnableIPv6,
+                        Labels: networkData.Labels || {},
+                        Options: networkData.Options || {}
+                    })
+                });
+                networkId = createResponse.Id;
+                window.history.replaceState(null, '', `?id=${networkId}`);
+                await fetchNetworkDetails();
+            } catch (recoveryError) {
+                console.error('Failed to recover network:', recoveryError);
+                showNotification('Failed to recover network. Please refresh the page.', 'error');
+            }
+        } finally {
+            $('#loadingSpinner').addClass('hidden');
+        }
+    }
+
+    // Event handlers for edit network modal
+    $('#editNetworkBtn').click(function() {
+        if (!$(this).prop('disabled')) {
+            loadNetworkForEdit();
+        }
+    });
+
+    $('#closeEditNetworkModal').click(() => {
+        $('#editNetworkModal').addClass('hidden');
+    });
+
+    $('#addLabelBtn').click(() => addLabelRow());
+    $('#addOptionBtn').click(() => addOptionRow());
+
+    $(document).on('click', '.remove-label', function() {
+        $(this).closest('.label-row').remove();
+    });
+
+    $(document).on('click', '.remove-option', function() {
+        $(this).closest('.option-row').remove();
+    });
+
+    $('#editNetworkForm').submit(function(e) {
+        e.preventDefault();
+
+        // Collect form data
+        const formData = {
+            name: $('#editNetworkName').val().trim(),
+            enableIPv6: $('#enableIPv6').is(':checked'),
+            labels: {},
+            options: {}
+        };
+
+        // Validate name
+        if (!formData.name) {
+            showNotification('Network name is required', 'error');
+            return;
+        }
+
+        // Collect labels
+        $('.label-row').each(function() {
+            const key = $(this).find('.label-key').val().trim();
+            const value = $(this).find('.label-value').val().trim();
+            if (key) {
+                formData.labels[key] = value;
+            }
+        });
+
+        // Collect options
+        $('.option-row').each(function() {
+            const key = $(this).find('.option-key').val().trim();
+            const value = $(this).find('.option-value').val().trim();
+            if (key) {
+                formData.options[key] = value;
+            }
+        });
+
+        // Confirm and update
+        if (confirm('Are you sure you want to update the network configuration? This will recreate the network.')) {
+            updateNetworkConfiguration(formData);
+        }
+    });
+    initializeCharts();
+    fetchNetworkDetails();
+
+    // Set up auto-refresh every 10 seconds
+    setInterval(fetchNetworkDetails, 10000);
+});
+    </script>
+</body>
+
+
+</html>
