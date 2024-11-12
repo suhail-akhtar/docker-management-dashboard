@@ -6,7 +6,7 @@ A modern, feature-rich web interface for managing Docker containers, volumes, an
 Its an initial draft version, all html + javascript + jQuery code is inside in its own .html files, i'll separate it later,
 
 
-![Docker Web Management UI](screenshot.png)
+![Docker Web Management UI](Home.png)
 
 ## 🌟 Features
 
