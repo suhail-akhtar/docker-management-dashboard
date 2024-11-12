@@ -6,7 +6,7 @@ A modern, feature-rich web interface for managing Docker containers, volumes, an
 Its an initial draft version, all html + javascript + jQuery code is inside in its own .html files, i'll separate it later,
 
 
-![Docker Web Management UI](Home.png)
+[Docker Web Management UI]
 
 ## 🌟 Features
 
@@ -157,6 +157,14 @@ Add appropriate CORS headers to your Docker or Nginx configuration  (already sha
 - Use secure WebSocket connections for terminal access
 
 ## 💻 Development
+
+## Screenshots
+
+### Home Page
+!Home.png
+
+### Images Dashboard
+!ImageDashboard.png
 
 ### Project Structure
 ```
